@@ -1,0 +1,5166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Physics Sandbox + AI Assistant (Single File V2)</title>
+  @import
+  url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@500;700&display=swap');
+
+  :root {
+  --bg-deep: #030014;
+  --bg-panel: rgba(14, 16, 33, 0.75);
+  --primary: #6366f1;
+  --primary-glow: rgba(99, 102, 241, 0.4);
+  --accent: #d946ef;
+  --accent-glow: rgba(217, 70, 239, 0.4);
+  --text-main: #f3f4f6;
+  --text-dim: #9ca3af;
+  --border: rgba(255, 255, 255, 0.1);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-neon: 0 0 10px var(--primary-glow), 0 0 20px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+  body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-deep);
+  background-image:
+  radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 25%),
+  radial-gradient(circle at 85% 30%, rgba(217, 70, 239, 0.15) 0%, transparent 25%);
+  color: var(--text-main);
+  height: 100vh;
+  display: flex;
+  overflow: hidden; /* prevent body scroll, handle inside app */
+  }
+
+  .app {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  }
+
+  /* Left: canvas area */
+  .canvas-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: radial-gradient(circle at center, #0f111a 0%, #000000 100%);
+  overflow: hidden;
+  }
+
+  .header-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none; /* let clicks pass through to canvas where possible */
+  }
+
+  .header-title-block {
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+  }
+
+  .header-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  color: white;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+  background: linear-gradient(to right, #fff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  }
+
+  .header-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  }
+
+  .header-right {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+  }
+
+  .chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: var(--glass-border);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-dim);
+  font-size: 10px;
+  backdrop-filter: blur(4px);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  }
+
+  canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  }
+
+  /* HUD overlay */
+  .hud {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--bg-panel);
+  border: var(--glass-border);
+  font-size: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  box-shadow: var(--shadow-neon);
+  min-width: 140px;
+  }
+
+  .hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+  }
+  .hud-row:last-child { margin-bottom: 0; }
+
+  .hud-label { color: #94a3b8; font-weight: 500; }
+  .hud-value { color: #fff; font-family: 'Orbitron', monospace; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+
+  /* Right: assistant panel */
+  .assistant {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(5, 7, 20, 0.95);
+  border-left: var(--glass-border);
+  z-index: 20;
+  }
+
+  .assistant-header {
+  padding: 16px;
+  border-bottom: var(--glass-border);
+  background: rgba(99, 102, 241, 0.03);
+  }
+
+  .assistant-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  letter-spacing: 1px;
+  }
+
+  .badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(217, 70, 239, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(217, 70, 239, 0.2);
+  }
+
+  .messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-behavior: smooth;
+  }
+
+  /* Scrollbar Styling */
+  .messages::-webkit-scrollbar { width: 6px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+  .messages::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+  .msg {
+  line-height: 1.5;
+  font-size: 13px;
+  max-width: 90%;
+  word-wrap: break-word;
+  animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.system {
+  align-self: center;
+  color: #64748b;
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  margin: 8px 0;
+  }
+
+  .msg.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--primary), #4f46e5);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 12px 12px 0 12px;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.2);
+  }
+
+  .msg.bot {
+  align-self: flex-start;
+  background: rgba(30, 41, 59, 0.6);
+  border: var(--glass-border);
+  color: #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 12px 12px 12px 0;
+  }
+
+  .msg .label { display: none; } /* Hide old text labels */
+
+  .input-area {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: var(--glass-border);
+  }
+
+  .input-row {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  }
+
+  .input-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.6);
+  color: white;
+  font-size: 13px;
+  transition: all 0.2s;
+  }
+
+  .input-row input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  }
+
+  .input-row button {
+  padding: 0 16px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--primary);
+  color: white;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.3);
+  }
+
+  .input-row button:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+  }
+  .input-row button:active { transform: translateY(1px); }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 768px) {
+  .app {
+  flex-direction: column;
+  }
+
+  .canvas-wrapper {
+  flex: 1; /* Takes available space */
+  min-height: 50vh;
+  }
+
+  .assistant {
+  width: 100%;
+  height: 40vh; /* Fixed height for chat on mobile */
+  border-left: none;
+  border-top: var(--glass-border);
+  }
+
+  .header-overlay {
+  top: 10px; left: 10px; right: 10px;
+  }
+
+  .header-title-block { padding: 8px 12px; }
+  .header-title { font-size: 14px; }
+
+  .hud {
+  top: 60px; /* shift to top on mobile so it doesn't cover action area */
+  bottom: auto;
+  left: 10px;
+  padding: 8px 12px;
+  }
+  }
+</head>
+
+<body>
+  <div class="app">
+    <!-- LEFT: PHYSICS SANDBOX -->
+    <div class="canvas-wrapper">
+      <div class="header-overlay">
+        <div class="header-title-block">
+          <div class="header-title">Physics Sandbox</div>
+          <div class="header-sub">Click = spawn • Drag = fling</div>
+        </div>
+        <div class="header-right">
+          <div class="chip">AI World</div>
+          <div class="chip">v2.0</div>
+        </div>
+      </div>
+
+      <canvas id="sandbox"></canvas>
+
+      <!-- HUD overlay -->
+      <div class="hud" id="hud">
+        <div class="hud-row">
+          <div class="hud-label">Balls</div>
+          <div class="hud-value" id="hud-balls">0</div>
+        </div>
+        <div class="hud-row">
+          <div class="hud-label">Gravity</div>
+          <div class="hud-value" id="hud-gravity">0.00</div>
+        </div>
+        <div class="hud-row">
+          <div class="hud-label">Time</div>
+          <div class="hud-value" id="hud-timescale">1.00</div>
+        </div>
+        <div class="hud-row">
+          <div class="hud-label">Mode</div>
+          <div class="hud-value" id="hud-mode">normal</div>
+        </div>
+        <div class="hud-row">
+          <div class="hud-label">State</div>
+          <div class="hud-value" id="hud-state">running</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: AI ASSISTANT PANEL -->
+    <div class="assistant">
+      <div class="assistant-header">
+        <div class="assistant-title">
+          YOGYA AI
+          <span class="badge">ONLINE</span>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <div class="input-row">
+          <input id="chat-input" placeholder="Type a command..." />
+          <button id="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*************************************************
+     * 1. WORLD + BASIC PHYSICS ENGINE (Single File)
+     *************************************************/
+    const canvas = document.getElementById("sandbox");
+    const ctx = canvas.getContext("2d");
+
+    const world = {
+      width: 0,
+      height: 0,
+      gravity: 0.4,
+      airFriction: 0.999,
+      wallBounce: 0.85,
+      balls: [],
+      timeScale: 1.0,
+      mode: "normal", // normal | rain | chaos | calm
+    };
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      // Scale context to match dpr
+      ctx.scale(dpr, dpr);
+
+      // World dimensions remain logical (CSS pixels)
+      world.width = rect.width;
+      world.height = rect.height;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    // small correction so we don't forget in later expansions
+    function randRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function createBall(x, y, powerScale = 1) {
+      const radius = randRange(8, 22);
+      const ball = {
+        x,
+        y,
+        vx: randRange(-4, 4) * powerScale,
+        vy: randRange(-6, 0) * powerScale,
+        radius,
+        mass: radius * 0.5,
+      };
+      world.balls.push(ball);
+    }
+
+    // spawn starter balls
+    for (let i = 0; i < 10; i++) {
+      createBall(randRange(40, world.width - 40), randRange(20, world.height / 2), 0.5);
+    }
+
+    function stepPhysics(dt) {
+      const scaledDt = dt * world.timeScale;
+
+      for (const b of world.balls) {
+        // Gravity
+        b.vy += world.gravity * (b.mass / 15) * scaledDt;
+
+        // Friction
+        b.vx *= Math.pow(world.airFriction, scaledDt);
+        b.vy *= Math.pow(world.airFriction, scaledDt);
+
+        // Integrate position
+        b.x += b.vx * scaledDt;
+        b.y += b.vy * scaledDt;
+
+        // Collide with walls
+        if (b.x - b.radius < 0) {
+          b.x = b.radius;
+          b.vx = -b.vx * world.wallBounce;
+        } else if (b.x + b.radius > world.width) {
+          b.x = world.width - b.radius;
+          b.vx = -b.vx * world.wallBounce;
+        }
+
+        if (b.y - b.radius < 0) {
+          b.y = b.radius;
+          b.vy = -b.vy * world.wallBounce;
+        } else if (b.y + b.radius > world.height) {
+          b.y = world.height - b.radius;
+          b.vy = -b.vy * world.wallBounce;
+
+          // Floor friction
+          if (Math.abs(b.vy) < 0.8) {
+            b.vy = 0;
+            b.vx *= 0.96;
+          }
+        }
+      }
+
+      // world modes with automatic behaviors
+      if (world.mode === "rain") {
+        // gentle rain from top
+        if (Math.random() < 0.4 * scaledDt) {
+          createBall(randRange(20, world.width - 20), -10, 0.4);
+        }
+      } else if (world.mode === "calm") {
+        // slowly damp the velocities
+        for (const b of world.balls) {
+          b.vx *= 0.995;
+          b.vy *= 0.995;
+        }
+      } else if (world.mode === "chaos") {
+        // random kicks
+        if (Math.random() < 0.02 * scaledDt) {
+          const idx = Math.floor(Math.random() * world.balls.length);
+          const b = world.balls[idx];
+          if (b) {
+            b.vx += randRange(-8, 8);
+            b.vy += randRange(-8, 8);
+          }
+        }
+      }
+    }
+
+    function drawBackground() {
+      // Soft background grid
+      ctx.globalAlpha = 0.08;
+      ctx.beginPath();
+      const step = 40;
+      for (let x = 0; x < canvas.width; x += step) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+      }
+      for (let y = 0; y < canvas.height; y += step) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+      }
+      ctx.strokeStyle = "#4b5563";
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawBalls() {
+      for (const b of world.balls) {
+        const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        const intensity = Math.min(speed / 12, 1);
+
+        const r = 129 + intensity * 80;
+        const g = 140 - intensity * 40;
+        const bl = 248;
+
+        const gradient = ctx.createRadialGradient(
+          b.x - b.radius * 0.4, b.y - b.radius * 0.4, b.radius * 0.1,
+          b.x, b.y, b.radius
+        );
+        gradient.addColorStop(0, `rgba(${r},${g},${bl},1)`);
+        gradient.addColorStop(1, `rgba(15,23,42,1)`);
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Glow
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius + 3, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${r},${g},${bl},0.3)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    /*************************************************
+     * 2. MOUSE CONTROL (spawn + velocity preview)
+     *************************************************/
+    let isDragging = false;
+    let dragStart = null;
+    let currentPos = null;
+
+    canvas.addEventListener("mousedown", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      dragStart = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      currentPos = { ...dragStart };
+      isDragging = true;
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      currentPos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      if (!isDragging) return;
+      const dx = currentPos.x - dragStart.x;
+      const dy = currentPos.y - dragStart.y;
+      const powerScale = Math.min(Math.sqrt(dx * dx + dy * dy) / 50, 3) + 0.3;
+
+      createBall(dragStart.x, dragStart.y, powerScale);
+      isDragging = false;
+      dragStart = null;
+      currentPos = null;
+    });
+
+    // Touch support (mobile)
+    canvas.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      dragStart = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+      currentPos = { ...dragStart };
+      isDragging = true;
+
+      // For selection logic (hooked later)
+      // Dispatch proper MouseEvent for other listeners
+      const mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        bubbles: true
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      currentPos = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (!isDragging) return;
+      const dx = currentPos.x - dragStart.x;
+      const dy = currentPos.y - dragStart.y;
+      const powerScale = Math.min(Math.sqrt(dx * dx + dy * dy) / 50, 3) + 0.3;
+
+      createBall(dragStart.x, dragStart.y, powerScale);
+      isDragging = false;
+      dragStart = null;
+      currentPos = null;
+
+      // For selection logic compatibility
+      // Dispatch proper MouseEvent for other listeners
+      const mouseEvent = new MouseEvent("mouseup", {
+        clientX: (currentPos ? currentPos.x : 0),
+        clientY: (currentPos ? currentPos.y : 0),
+        bubbles: true
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    function drawDragPreview() {
+      if (!isDragging || !dragStart || !currentPos) return;
+
+      const dx = currentPos.x - dragStart.x;
+      const dy = currentPos.y - dragStart.y;
+
+      const length = Math.sqrt(dx * dx + dy * dy);
+      const maxLength = 120;
+      const factor = length > 0 ? Math.min(length / maxLength, 1) : 0;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(dragStart.x, dragStart.y);
+      ctx.lineTo(currentPos.x, currentPos.y);
+      ctx.strokeStyle = `rgba(129, 140, 248, ${0.2 + 0.5 * factor})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.restore();
+
+      // small circle at spawn point
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(dragStart.x, dragStart.y, 6 + 6 * factor, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(248, 250, 252, ${0.4 + 0.4 * factor})`;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /*************************************************
+     * 3. HUD UPDATE
+     *************************************************/
+    const hudBalls = document.getElementById("hud-balls");
+    const hudGravity = document.getElementById("hud-gravity");
+    const hudTimescale = document.getElementById("hud-timescale");
+    const hudMode = document.getElementById("hud-mode");
+    const hudState = document.getElementById("hud-state");
+
+    function updateHUD(frozen) {
+      hudBalls.textContent = world.balls.length.toString();
+      hudGravity.textContent = world.gravity.toFixed(2);
+      hudTimescale.textContent = world.timeScale.toFixed(2);
+      hudMode.textContent = world.mode;
+      hudState.textContent = frozen ? "frozen" : "running";
+    }
+
+    /*************************************************
+     * 4. AI ASSISTANT (RULE-BASED BRAIN)
+     *************************************************/
+    const messagesEl = document.getElementById("messages");
+    const inputEl = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    function addMessage(role, text) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      const label = document.createElement("span");
+      label.className = "label";
+
+      if (role === "system") label.textContent = "[system]";
+      if (role === "user") label.textContent = "You:";
+      if (role === "bot") label.textContent = "Yogya-AI:";
+
+      div.appendChild(label);
+      div.appendChild(document.createTextNode(" " + text));
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function initAssistant() {
+      addMessage("system",
+        "Commands: 'spawn 20 balls', 'gravity 0.2', 'time 0.5', 'slow motion', 'chaos mode', 'rain mode', 'calm mode', 'clear', 'freeze', 'unfreeze', 'help'."
+      );
+    }
+
+    function parseNumberInText(text, defaultValue = 1) {
+      const match = text.match(/(\d+(\.\d+)?)/);
+      if (!match) return defaultValue;
+      return parseFloat(match[1]);
+    }
+
+    let frozen = false;
+
+    function setMode(mode) {
+      world.mode = mode;
+      addMessage("bot", `World mode set to "${mode}".`);
+    }
+
+    function handleUserCommand(text) {
+      const lower = text.toLowerCase().trim();
+      addMessage("user", text);
+
+      // spawn
+      if (lower.startsWith("spawn") || lower.includes("add balls")) {
+        const count = Math.min(parseNumberInText(lower, 5), 300);
+        for (let i = 0; i < count; i++) {
+          createBall(randRange(40, world.width - 40), randRange(20, world.height / 2), 1);
+        }
+        addMessage("bot", `Spawned ${count} balls in the sandbox.`);
+        return;
+      }
+
+      // gravity control
+      if (lower.includes("gravity")) {
+        const g = parseNumberInText(lower, world.gravity);
+        world.gravity = g;
+        addMessage("bot", `Gravity set to ${g.toFixed(2)}. Higher → faster falls.`);
+        return;
+      }
+
+      // time scale
+      if (lower.startsWith("time") || lower.includes("speed")) {
+        const ts = parseNumberInText(lower, world.timeScale);
+        world.timeScale = Math.max(0.05, Math.min(ts, 4));
+        addMessage("bot", `Time scale set to ${world.timeScale.toFixed(2)} (1.0 = normal).`);
+        return;
+      }
+
+      // clear
+      if (lower.includes("clear") || lower.includes("reset")) {
+        world.balls = [];
+        addMessage("bot", "Cleared all balls from the sandbox.");
+        return;
+      }
+
+      // preset modes
+      if (lower.includes("slow motion")) {
+        world.timeScale = 0.25;
+        world.gravity = Math.min(world.gravity, 0.18);
+        world.mode = "normal";
+        addMessage("bot", "Slow motion enabled: timeScale 0.25, gentle gravity.");
+        return;
+      }
+
+      if (lower.includes("rain mode") || lower.includes("rain")) {
+        setMode("rain");
+        world.gravity = Math.max(world.gravity, 0.45);
+        world.timeScale = 1.0;
+        return;
+      }
+
+      if (lower.includes("chaos mode") || (lower.includes("chaos") && !lower.includes("mode"))) {
+        setMode("chaos");
+        world.gravity = Math.max(world.gravity, 0.5);
+        world.timeScale = 1.3;
+        return;
+      }
+
+      if (lower.includes("calm mode") || lower.includes("calm")) {
+        setMode("calm");
+        world.timeScale = 0.7;
+        world.gravity = Math.min(world.gravity, 0.35);
+        return;
+      }
+
+      // explosions
+      if (lower.includes("explosion") || lower.includes("burst")) {
+        for (let i = 0; i < 80; i++) {
+          const b = {
+            x: world.width / 2,
+            y: world.height / 2,
+            vx: randRange(-12, 12),
+            vy: randRange(-12, 12),
+            radius: randRange(6, 14),
+            mass: randRange(3, 10),
+          };
+          world.balls.push(b);
+        }
+        addMessage("bot", "Central explosion triggered. Look at the radial velocity field.");
+        return;
+      }
+
+      // freeze/unfreeze
+      if (lower.includes("freeze") && !lower.includes("unfreeze")) {
+        frozen = true;
+        addMessage("bot", "Sandbox frozen. Physics paused, drawing continues.");
+        return;
+      }
+
+      if (lower.includes("unfreeze") || lower.includes("resume")) {
+        frozen = false;
+        addMessage("bot", "Physics resumed.");
+        return;
+      }
+
+      // help
+      if (lower.includes("help") || lower.includes("what can you do")) {
+        addMessage(
+          "bot",
+          "I can control gravity, time scale, spawn patterns, modes (rain, chaos, calm), explosions, and freezing. Try: 'time 0.3', 'rain mode', 'chaos mode', 'clear', 'slow motion'."
+        );
+        return;
+      }
+
+      // explanation type questions
+      if (lower.includes("why") && lower.includes("bounce")) {
+        addMessage(
+          "bot",
+          "Bounce height depends on restitution (wallBounce) and gravity. Lower gravity or higher wallBounce → taller bounces and slower energy loss."
+        );
+        return;
+      }
+
+      addMessage(
+        "bot",
+        "I didn't fully understand that, but I respond to: spawn, gravity, time, slow motion, rain mode, chaos mode, calm mode, explosion, clear, freeze, unfreeze, help."
+      );
+    }
+
+    /*************************************************
+     * 5. MAIN LOOP WITH FREEZE + DELTA TIME
+     *************************************************/
+    let lastTimestamp = performance.now();
+
+    function mainLoop(timestamp) {
+      const dtMs = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+      const dt = Math.min(dtMs / 16.67, 2); // normalize vs 60fps
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackground();
+
+      if (!frozen) {
+        stepPhysics(dt || 1);
+      }
+
+      drawBalls();
+      drawDragPreview();
+      updateHUD(frozen);
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    requestAnimationFrame((t) => {
+      lastTimestamp = t;
+      mainLoop(t);
+    });
+
+    /*************************************************
+     * 6. INPUT EVENTS
+     *************************************************/
+    sendBtn.addEventListener("click", () => {
+      const value = inputEl.value.trim();
+      if (!value) return;
+      inputEl.value = "";
+      handleUserCommand(value);
+    });
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        sendBtn.click();
+      }
+    });
+    /*************************************************
+ * 7. VOICE INPUT (LOCAL SPEECH RECOGNITION)
+ *************************************************/
+    let voiceEnabled = false;
+    let recognition = null;
+
+    function initVoice() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        addMessage("system", "Voice input not supported in this browser.");
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        addMessage("user", "[voice] " + transcript);
+        handleUserCommand(transcript);
+      };
+
+      recognition.onerror = () => {
+        addMessage("system", "Voice recognition error.");
+      };
+    }
+
+    function toggleVoice() {
+      if (!recognition) initVoice();
+      voiceEnabled = !voiceEnabled;
+
+      if (voiceEnabled) {
+        recognition.start();
+        addMessage("bot", "Voice input enabled. Speak commands.");
+      } else {
+        recognition.stop();
+        addMessage("bot", "Voice input disabled.");
+      }
+    }
+
+    /*************************************************
+     * 8. PRESET SYSTEM (SAVE / LOAD WORLDS)
+     *************************************************/
+    const presets = {};
+
+    function savePreset(name) {
+      presets[name] = JSON.stringify({
+        gravity: world.gravity,
+        timeScale: world.timeScale,
+        mode: world.mode,
+        balls: world.balls
+      });
+      addMessage("bot", `Preset "${name}" saved.`);
+    }
+
+    function loadPreset(name) {
+      if (!presets[name]) {
+        addMessage("bot", `Preset "${name}" not found.`);
+        return;
+      }
+
+      const data = JSON.parse(presets[name]);
+      world.gravity = data.gravity;
+      world.timeScale = data.timeScale;
+      world.mode = data.mode;
+      world.balls = data.balls;
+
+      addMessage("bot", `Preset "${name}" loaded.`);
+    }
+
+    /*************************************************
+     * 9. ADVANCED AI COMMAND EXTENSIONS
+     *************************************************/
+    function handleAdvancedCommands(lower) {
+      // voice toggle
+      if (lower.includes("voice")) {
+        toggleVoice();
+        return true;
+      }
+
+      // save preset
+      if (lower.startsWith("save")) {
+        const name = lower.replace("save", "").trim() || "default";
+        savePreset(name);
+        return true;
+      }
+
+      // load preset
+      if (lower.startsWith("load")) {
+        const name = lower.replace("load", "").trim() || "default";
+        loadPreset(name);
+        return true;
+      }
+
+      // nuke mode 😈
+      if (lower.includes("nuke")) {
+        for (let i = 0; i < 400; i++) {
+          world.balls.push({
+            x: randRange(0, world.width),
+            y: randRange(0, world.height),
+            vx: randRange(-25, 25),
+            vy: randRange(-25, 25),
+            radius: randRange(4, 10),
+            mass: randRange(2, 6)
+          });
+        }
+        addMessage("bot", "NUKE MODE ACTIVATED 🔥");
+        return true;
+      }
+
+      return false;
+    }
+
+    // --- Hook advanced commands into main AI ---
+    const oldHandleUserCommand = handleUserCommand;
+
+    handleUserCommand = function (text) {
+      const lower = text.toLowerCase().trim();
+      if (handleAdvancedCommands(lower)) return;
+      oldHandleUserCommand(text);
+    };
+
+    /*************************************************
+     * 10. DEBUG OVERLAY (FUTURE PROFILER BASE)
+     *************************************************/
+    const debug = {
+      fps: 0,
+      lastFPSUpdate: performance.now(),
+      frameCount: 0,
+      enabled: true
+    };
+
+    function updateFPS(timestamp) {
+      debug.frameCount++;
+      if (timestamp - debug.lastFPSUpdate > 1000) {
+        debug.fps = debug.frameCount;
+        debug.frameCount = 0;
+        debug.lastFPSUpdate = timestamp;
+      }
+    }
+
+    function drawDebug() {
+      if (!debug.enabled) return;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(15,23,42,0.7)";
+      ctx.fillRect(12, canvas.height - 62, 140, 46);
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "11px system-ui";
+      ctx.fillText("FPS: " + debug.fps.toString(), 22, canvas.height - 40);
+      ctx.fillText("Objects: " + world.balls.length, 22, canvas.height - 24);
+      ctx.restore();
+    }
+
+    // Patch debug into render loop safely
+    const OLD_MAIN_LOOP = mainLoop;
+    mainLoop = function (timestamp) {
+      updateFPS(timestamp);
+      OLD_MAIN_LOOP(timestamp);
+      drawDebug();
+    };
+
+    /*************************************************
+     * 11. EXPERIMENTAL FIELD FORCES (MAGNET / VORTEX)
+     *************************************************/
+    const fields = {
+      magnet: false,
+      vortex: false,
+      origin: { x: 0, y: 0 }
+    };
+
+    function applyFieldForces() {
+      if (!fields.magnet && !fields.vortex) return;
+
+      for (const b of world.balls) {
+        const dx = fields.origin.x - b.x;
+        const dy = fields.origin.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
+
+        if (fields.magnet) {
+          const force = 0.05 * b.mass;
+          b.vx += (dx / dist) * force;
+          b.vy += (dy / dist) * force;
+        }
+
+        if (fields.vortex) {
+          const spin = 0.08;
+          b.vx += -dy / dist * spin;
+          b.vy += dx / dist * spin;
+        }
+      }
+    }
+
+    // Inject field forces into physics
+    const OLD_STEP_PHYSICS = stepPhysics;
+    stepPhysics = function (dt) {
+      OLD_STEP_PHYSICS(dt);
+      applyFieldForces();
+    };
+
+    /*************************************************
+     * 12. FIELD COMMANDS (AI CONTROLLED)
+     *************************************************/
+    function handleFieldCommands(lower) {
+      if (lower.includes("magnet on")) {
+        fields.magnet = true;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+        addMessage("bot", "Magnetic field activated.");
+        return true;
+      }
+
+      if (lower.includes("magnet off")) {
+        fields.magnet = false;
+        addMessage("bot", "Magnetic field disabled.");
+        return true;
+      }
+
+      if (lower.includes("vortex on")) {
+        fields.vortex = true;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+        addMessage("bot", "Vortex field activated.");
+        return true;
+      }
+
+      if (lower.includes("vortex off")) {
+        fields.vortex = false;
+        addMessage("bot", "Vortex field disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    // Patch field commands into AI
+    const OLD_HANDLE_ADVANCED = handleAdvancedCommands;
+
+    handleAdvancedCommands = function (lower) {
+      if (handleFieldCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED(lower);
+    };
+
+    /*************************************************
+     * 13. NEXT SYSTEM: MATERIAL TYPES (COMING UP)
+     *************************************************/
+    const MATERIALS = {
+      NORMAL: 0,
+      HEAVY: 1,
+      BOUNCY: 2,
+      GHOST: 3
+    };
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    function assignMaterialToBall(ball, materialType) {
+      ball.material = materialType;
+
+      // keep a stable reference mass so repeated assignments don't stack
+      if (!("baseMass" in ball)) {
+        ball.baseMass = ball.mass || (ball.radius * 0.5);
+      }
+
+      ball.mass = ball.baseMass; // reset, then adjust per material
+      ball.materialLabel = "normal";
+      ball.materialHint = "Default behavior.";
+      ball.materialStroke = "rgba(148, 163, 184, 0.6)";
+      ball.materialEnergy = 1.0; // relative energy behavior
+
+      switch (materialType) {
+        case MATERIALS.HEAVY:
+          ball.mass = ball.baseMass * 2.5;
+          ball.materialLabel = "heavy";
+          ball.materialHint = "Falls faster, loses energy quicker.";
+          ball.materialStroke = "rgba(248, 113, 113, 0.9)"; // red-ish
+          ball.materialEnergy = 0.82;
+          break;
+
+        case MATERIALS.BOUNCY:
+          ball.mass = ball.baseMass * 0.9;
+          ball.materialLabel = "bouncy";
+          ball.materialHint = "Lighter, keeps bouncing for longer.";
+          ball.materialStroke = "rgba(52, 211, 153, 0.9)"; // green-ish
+          ball.materialEnergy = 1.12;
+          break;
+
+        case MATERIALS.GHOST:
+          ball.mass = ball.baseMass * 0.4;
+          ball.materialLabel = "ghost";
+          ball.materialHint = "Low mass, glides and ignores some damping.";
+          ball.materialStroke = "rgba(209, 213, 219, 0.7)"; // pale
+          ball.materialEnergy = 1.02;
+          break;
+
+        default:
+          // NORMAL already set above
+          break;
+      }
+    }
+
+    function setAllBallsMaterial(materialType) {
+      for (const b of world.balls) {
+        assignMaterialToBall(b, materialType);
+      }
+    }
+
+    function randomizeMaterials() {
+      const types = [
+        MATERIALS.NORMAL,
+        MATERIALS.HEAVY,
+        MATERIALS.BOUNCY,
+        MATERIALS.GHOST
+      ];
+      for (const b of world.balls) {
+        const t = types[Math.floor(Math.random() * types.length)];
+        assignMaterialToBall(b, t);
+      }
+    }
+
+    function describeMaterialType(materialType) {
+      switch (materialType) {
+        case MATERIALS.HEAVY:
+          return "HEAVY → high mass, strong gravity effect, loses energy quickly.";
+        case MATERIALS.BOUNCY:
+          return "BOUNCY → lighter, more energetic bounces, keeps moving longer.";
+        case MATERIALS.GHOST:
+          return "GHOST → very low mass, slides around with minimal damping.";
+        default:
+          return "NORMAL → default behavior, balanced between stability and motion.";
+      }
+    }
+
+    /*************************************************
+     * 14. MATERIAL SIDE EFFECTS IN PHYSICS
+     *************************************************/
+    function applyMaterialSideEffects() {
+      for (const b of world.balls) {
+        const m = b.material;
+
+        if (m === MATERIALS.HEAVY) {
+          // slightly increase vertical pull, increase friction
+          b.vy += 0.02;
+          b.vx *= 0.985;
+          b.vy *= 0.985;
+        } else if (m === MATERIALS.BOUNCY) {
+          // gently amplify velocity to simulate "springy" material
+          if (Math.abs(b.vy) > 0.5) {
+            b.vy *= 1.003 * (b.materialEnergy || 1.0);
+          }
+          b.vx *= 1.001;
+        } else if (m === MATERIALS.GHOST) {
+          // almost no friction, slight floating effect
+          b.vx *= 1.002;
+          b.vy *= 0.998;
+        }
+      }
+    }
+
+    // wrap existing stepPhysics again to inject material behavior
+    const STEP_WITH_FIELDS = stepPhysics;
+    stepPhysics = function (dt) {
+      STEP_WITH_FIELDS(dt);
+      applyMaterialSideEffects();
+    };
+
+    /*************************************************
+     * 15. MATERIAL VISUAL OVERLAYS
+     *************************************************/
+    const OLD_DRAW_BALLS = drawBalls;
+    drawBalls = function () {
+      // first, draw the normal balls (gradient, glow etc.)
+      OLD_DRAW_BALLS();
+
+      // then overlay a subtle outline based on material type
+      for (const b of world.balls) {
+        if (b.material == null || b.material === MATERIALS.NORMAL) continue;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius + 1.5, 0, Math.PI * 2);
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = b.materialStroke || "rgba(148, 163, 184, 0.6)";
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    /*************************************************
+     * 16. AI COMMANDS FOR MATERIALS
+     *************************************************/
+    function handleMaterialCommands(lower) {
+      // all heavy
+      if (lower.includes("all heavy") || lower.includes("make them heavy")) {
+        setAllBallsMaterial(MATERIALS.HEAVY);
+        addMessage("bot", "All balls are now HEAVY. Expect faster falls and lower bounces.");
+        return true;
+      }
+
+      // all bouncy
+      if (lower.includes("all bouncy") || lower.includes("bouncy balls")) {
+        setAllBallsMaterial(MATERIALS.BOUNCY);
+        addMessage("bot", "All balls are now BOUNCY. They will keep bouncing for longer.");
+        return true;
+      }
+
+      // all ghost
+      if (lower.includes("ghost mode") || lower.includes("ghost balls")) {
+        setAllBallsMaterial(MATERIALS.GHOST);
+        addMessage("bot", "All balls are now GHOST-like, gliding with minimal damping.");
+        return true;
+      }
+
+      // back to normal
+      if (lower.includes("normal material") || lower.includes("reset material")) {
+        setAllBallsMaterial(MATERIALS.NORMAL);
+        addMessage("bot", "All balls reverted to NORMAL material.");
+        return true;
+      }
+
+      // random materials
+      if (lower.includes("random materials") || lower.includes("mix materials")) {
+        randomizeMaterials();
+        addMessage("bot", "Assigned a random material to every ball.");
+        return true;
+      }
+
+      // explanation request
+      if (lower.includes("explain materials") || lower.includes("what materials")) {
+        addMessage("bot", describeMaterialType(MATERIALS.NORMAL));
+        addMessage("bot", describeMaterialType(MATERIALS.HEAVY));
+        addMessage("bot", describeMaterialType(MATERIALS.BOUNCY));
+        addMessage("bot", describeMaterialType(MATERIALS.GHOST));
+        return true;
+      }
+
+      return false;
+    }
+
+    // hook material commands into the advanced command chain
+    const OLD_HANDLE_ADVANCED_2 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleMaterialCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_2(lower);
+    };
+
+    /*************************************************
+     * 17. DEBUG TOGGLE COMMANDS
+     *************************************************/
+    function handleDebugCommands(lower) {
+      if (lower.includes("debug off") || lower.includes("hide debug")) {
+        debug.enabled = false;
+        addMessage("bot", "Debug overlay disabled.");
+        return true;
+      }
+
+      if (lower.includes("debug on") || lower.includes("show debug")) {
+        debug.enabled = true;
+        addMessage("bot", "Debug overlay enabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_3 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleDebugCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_3(lower);
+    };
+
+    /*************************************************
+     * 18. NEXT SYSTEM: TRAILS + HISTORY (COMING UP)
+     *************************************************/
+    const TRAILS = {
+      enabled: false,
+      maxLength: 24,
+      storeEveryNFrames: 2,
+      frameCounter: 0
+    };
+
+    // we will attach per-ball trail arrays later
+    // b.trail = [{x, y}, ...] when enabled
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    function ensureTrailArray(ball) {
+      if (!ball.trail) {
+        ball.trail = [];
+      }
+      return ball.trail;
+    }
+
+    function addTrailPoint(ball) {
+      const trail = ensureTrailArray(ball);
+      trail.push({ x: ball.x, y: ball.y });
+
+      if (trail.length > TRAILS.maxLength) {
+        trail.shift();
+      }
+    }
+
+    function updateTrails() {
+      if (!TRAILS.enabled) return;
+      TRAILS.frameCounter++;
+
+      // only store every N frames to avoid memory spam
+      if (TRAILS.frameCounter % TRAILS.storeEveryNFrames !== 0) return;
+
+      for (const b of world.balls) {
+        addTrailPoint(b);
+      }
+    }
+
+    function fadeTrailsWhenDisabled() {
+      // optional gradual fading when trails get disabled
+      if (TRAILS.enabled) return;
+
+      for (const b of world.balls) {
+        if (!b.trail || b.trail.length === 0) continue;
+        // slowly shorten the trail
+        if (Math.random() < 0.25) {
+          b.trail.shift();
+        }
+      }
+    }
+
+    // hook trail updates into physics step chain
+    const STEP_WITH_MATERIALS = stepPhysics;
+    stepPhysics = function (dt) {
+      STEP_WITH_MATERIALS(dt);
+      updateTrails();
+      fadeTrailsWhenDisabled();
+    };
+
+    function drawTrails() {
+      if (!TRAILS.enabled) return;
+
+      ctx.save();
+      ctx.lineWidth = 1.1;
+      ctx.lineCap = "round";
+
+      for (const b of world.balls) {
+        const trail = b.trail;
+        if (!trail || trail.length < 2) continue;
+
+        const baseAlpha = 0.14;
+        const maxAlpha = 0.7;
+
+        ctx.beginPath();
+        for (let i = 0; i < trail.length - 1; i++) {
+          const p = trail[i];
+          const next = trail[i + 1];
+          const t = i / (trail.length - 1);
+          const alpha = baseAlpha + (maxAlpha - baseAlpha) * t;
+
+          ctx.strokeStyle = `rgba(129,140,248,${alpha})`;
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(next.x, next.y);
+        }
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // patch drawBalls to include trails first for layering
+    const OLD_DRAW_BALLS_2 = drawBalls;
+    drawBalls = function () {
+      // trails under the balls
+      drawTrails();
+      // actual balls
+      OLD_DRAW_BALLS_2();
+    };
+
+    /*************************************************
+     * 19. AI COMMANDS FOR TRAILS / HISTORY
+     *************************************************/
+    function handleTrailCommands(lower) {
+      if (lower.includes("trails off") || lower.includes("hide trails")) {
+        TRAILS.enabled = false;
+        addMessage("bot", "Trails disabled. Existing streaks will slowly fade out.");
+        return true;
+      }
+
+      if (lower.includes("trails on") || lower.includes("show trails")) {
+        TRAILS.enabled = true;
+        addMessage("bot", "Trails enabled. Balls will leave motion streaks.");
+        return true;
+      }
+
+      if (lower.includes("long trails")) {
+        TRAILS.maxLength = 64;
+        TRAILS.storeEveryNFrames = 1;
+        addMessage("bot", "Trail length increased. Motion will look very cinematic.");
+        return true;
+      }
+
+      if (lower.includes("short trails")) {
+        TRAILS.maxLength = 12;
+        TRAILS.storeEveryNFrames = 3;
+        addMessage("bot", "Trail length shortened to keep motion subtle.");
+        return true;
+      }
+
+      if (lower.includes("reset trails")) {
+        TRAILS.maxLength = 24;
+        TRAILS.storeEveryNFrames = 2;
+        TRAILS.enabled = true;
+        for (const b of world.balls) {
+          b.trail = [];
+        }
+        addMessage("bot", "Trail settings reset to default and history cleared.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_4 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleTrailCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_4(lower);
+    };
+
+    /*************************************************
+     * 20. ENERGY / MOMENTUM ESTIMATOR
+     *************************************************/
+    const ENERGY = {
+      totalKinetic: 0,
+      averageSpeed: 0,
+      sampleWindow: 60,
+      samples: []
+    };
+
+    function computeInstantEnergy() {
+      let totalKinetic = 0;
+      let totalSpeed = 0;
+
+      for (const b of world.balls) {
+        const vx = b.vx || 0;
+        const vy = b.vy || 0;
+        const speed2 = vx * vx + vy * vy;
+        const mass = b.mass || 1;
+
+        totalKinetic += 0.5 * mass * speed2;
+        totalSpeed += Math.sqrt(speed2);
+      }
+
+      const avgSpeed = world.balls.length > 0
+        ? totalSpeed / world.balls.length
+        : 0;
+
+      ENERGY.totalKinetic = totalKinetic;
+      ENERGY.averageSpeed = avgSpeed;
+
+      ENERGY.samples.push({
+        k: totalKinetic,
+        v: avgSpeed
+      });
+
+      if (ENERGY.samples.length > ENERGY.sampleWindow) {
+        ENERGY.samples.shift();
+      }
+    }
+
+    // patch into main loop through a tiny helper
+    function energyTick() {
+      computeInstantEnergy();
+    }
+
+    const OLD_MAIN_LOOP_2 = mainLoop;
+    mainLoop = function (timestamp) {
+      OLD_MAIN_LOOP_2(timestamp);
+      energyTick();
+    };
+
+    /*************************************************
+     * 21. ENERGY SUMMARY COMMANDS
+     *************************************************/
+    function energySummaryText() {
+      const last = ENERGY.samples[ENERGY.samples.length - 1];
+      if (!last) {
+        return "No energy data yet. Spawn some balls first.";
+      }
+
+      const kinetic = last.k;
+      const avgV = last.v;
+      const ballCount = world.balls.length;
+
+      let mood = "calm";
+      if (kinetic > 300000) mood = "chaotic";
+      else if (kinetic > 70000) mood = "active";
+
+      return (
+        `Current energy state: ${mood}.\n` +
+        `• Balls: ${ballCount}\n` +
+        `• Approx. total kinetic energy: ${kinetic.toFixed(0)} (scaled units)\n` +
+        `• Avg speed: ${avgV.toFixed(2)} units/frame`
+      );
+    }
+
+    function handleEnergyCommands(lower) {
+      if (lower.includes("energy state") ||
+        lower.includes("system energy") ||
+        lower.includes("how energetic")) {
+        const text = energySummaryText();
+        for (const line of text.split("\n")) {
+          addMessage("bot", line);
+        }
+        return true;
+      }
+
+      if (lower.includes("low energy mode")) {
+        world.timeScale = 0.5;
+        world.gravity = Math.min(world.gravity, 0.3);
+        world.mode = "calm";
+        addMessage("bot", "Switched to low-energy mode: slower time, gentler gravity, calm mode.");
+        return true;
+      }
+
+      if (lower.includes("high energy mode")) {
+        world.timeScale = 1.6;
+        world.gravity = Math.max(world.gravity, 0.7);
+        world.mode = "chaos";
+        addMessage("bot", "High-energy mode enabled: faster time, stronger gravity, chaos mode.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_5 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleEnergyCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_5(lower);
+    };
+
+    /*************************************************
+     * 22. SELECTION SYSTEM (FOCUSED BALL)
+     *************************************************/
+    let selectedBallIndex = -1;
+
+    function pickBallAt(x, y) {
+      let bestIndex = -1;
+      let bestDist = Infinity;
+
+      for (let i = 0; i < world.balls.length; i++) {
+        const b = world.balls[i];
+        const dx = x - b.x;
+        const dy = y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= b.radius + 4 && dist < bestDist) {
+          bestDist = dist;
+          bestIndex = i;
+        }
+      }
+
+      return bestIndex;
+    }
+
+    function selectBallAt(x, y) {
+      const idx = pickBallAt(x, y);
+      selectedBallIndex = idx;
+
+      if (idx === -1) {
+        addMessage("bot", "No ball selected. Click closer to a ball to focus on it.");
+        return;
+      }
+
+      const b = world.balls[idx];
+      const speed = Math.sqrt((b.vx || 0) ** 2 + (b.vy || 0) ** 2);
+
+      addMessage(
+        "bot",
+        `Selected ball #${idx} → radius ${b.radius.toFixed(1)}, speed ${speed.toFixed(2)}, material: ${b.materialLabel || "normal"}.`
+      );
+    }
+
+    // patch mouse events: short click to select, drag to spawn
+    const OLD_MOUSE_DOWN = canvas.onmousedown;
+    const OLD_MOUSE_UP = canvas.onmouseup;
+
+    let mouseDownTime = 0;
+    let mouseDownPos = null;
+
+    canvas.addEventListener("mousedown", (e) => {
+      mouseDownTime = performance.now();
+      const rect = canvas.getBoundingClientRect();
+      mouseDownPos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      if (OLD_MOUSE_DOWN) OLD_MOUSE_DOWN(e);
+    }, true);
+
+    canvas.addEventListener("mouseup", (e) => {
+      const elapsed = performance.now() - mouseDownTime;
+      const rect = canvas.getBoundingClientRect();
+      const upPos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+
+      const dx = (mouseDownPos?.x || 0) - upPos.x;
+      const dy = (mouseDownPos?.y || 0) - upPos.y;
+      const dragDist = Math.sqrt(dx * dx + dy * dy);
+
+      // treat quick click with little movement as selection
+      if (elapsed < 180 && dragDist < 4) {
+        selectBallAt(upPos.x, upPos.y);
+      }
+
+      if (OLD_MOUSE_UP) OLD_MOUSE_UP(e);
+    }, true);
+
+    /*************************************************
+     * 23. HIGHLIGHT SELECTED BALL + HUD UPDATE
+     *************************************************/
+    const OLD_UPDATE_HUD = updateHUD;
+    updateHUD = function (frozen) {
+      OLD_UPDATE_HUD(frozen);
+
+      const hudMode = document.getElementById("hud-mode");
+      const hudState = document.getElementById("hud-state");
+
+      if (selectedBallIndex >= 0 && selectedBallIndex < world.balls.length) {
+        hudMode.textContent = world.mode + ` • focus #${selectedBallIndex}`;
+      } else {
+        hudMode.textContent = world.mode;
+      }
+
+      hudState.textContent = frozen ? "frozen" : "running";
+    };
+
+    const OLD_DRAW_BALLS_3 = drawBalls;
+    drawBalls = function () {
+      OLD_DRAW_BALLS_3();
+
+      // overlay ring on selected ball
+      if (selectedBallIndex >= 0 && selectedBallIndex < world.balls.length) {
+        const b = world.balls[selectedBallIndex];
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.9)";
+        ctx.lineWidth = 2.4;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    /*************************************************
+     * 24. AI COMMANDS FOR SELECTION
+     *************************************************/
+    function handleSelectionCommands(lower) {
+      if (lower.includes("what is selected") ||
+        lower.includes("which ball is selected")) {
+        if (selectedBallIndex < 0 || selectedBallIndex >= world.balls.length) {
+          addMessage("bot", "No ball is currently selected. Click on a ball to focus on it.");
+          return true;
+        }
+
+        const b = world.balls[selectedBallIndex];
+        const speed = Math.sqrt((b.vx || 0) ** 2 + (b.vy || 0) ** 2);
+
+        addMessage(
+          "bot",
+          `Focused ball #${selectedBallIndex}: radius=${b.radius.toFixed(1)}, speed=${speed.toFixed(2)}, material=${b.materialLabel || "normal"}.`
+        );
+        return true;
+      }
+
+      if (lower.includes("deselect") || lower.includes("clear selection")) {
+        selectedBallIndex = -1;
+        addMessage("bot", "Selection cleared.");
+        return true;
+      }
+
+      if (lower.includes("inspect fastest")) {
+        if (world.balls.length === 0) {
+          addMessage("bot", "No balls to inspect.");
+          return true;
+        }
+
+        let bestIndex = 0;
+        let bestSpeed = 0;
+
+        for (let i = 0; i < world.balls.length; i++) {
+          const b = world.balls[i];
+          const speed = Math.sqrt((b.vx || 0) ** 2 + (b.vy || 0) ** 2);
+          if (speed > bestSpeed) {
+            bestSpeed = speed;
+            bestIndex = i;
+          }
+        }
+
+        selectedBallIndex = bestIndex;
+        addMessage(
+          "bot",
+          `Fastest ball is #${bestIndex} with speed ${bestSpeed.toFixed(2)}. It is now selected.`
+        );
+        return true;
+      }
+
+      if (lower.includes("inspect highest")) {
+        if (world.balls.length === 0) {
+          addMessage("bot", "No balls to inspect.");
+          return true;
+        }
+
+        let bestIndex = 0;
+        let bestHeight = Infinity;
+
+        for (let i = 0; i < world.balls.length; i++) {
+          const b = world.balls[i];
+          if (b.y < bestHeight) {
+            bestHeight = b.y;
+            bestIndex = i;
+          }
+        }
+
+        selectedBallIndex = bestIndex;
+        addMessage(
+          "bot",
+          `Highest ball is #${bestIndex} at y=${bestHeight.toFixed(1)}. It is now selected.`
+        );
+        return true;
+      }
+
+      if (lower.includes("inspect count") ||
+        lower.includes("how many balls")) {
+        addMessage(
+          "bot",
+          `There are currently ${world.balls.length} balls in the sandbox.`
+        );
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_6 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleSelectionCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_6(lower);
+    };
+
+    /*************************************************
+     * 25. NEXT SYSTEM: ZONES / REGIONS (COMING UP)
+     *************************************************/
+    const ZONES = {
+      list: [],
+      enabled: false
+    };
+
+    // zones will be rectangular regions that modify physics inside them
+    // e.g., no-gravity zone, super-bounce zone, slow-motion pocket, etc.
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    function createZone(x, y, width, height, type) {
+      const zone = {
+        x,
+        y,
+        width,
+        height,
+        type,        // "low-gravity", "high-gravity", "slow", "fast", "bouncy"
+        strength: 1, // generic scalar used differently per type
+        label: "",
+        color: ""
+      };
+
+      switch (type) {
+        case "low-gravity":
+          zone.label = "Low-G";
+          zone.color = "rgba(96, 165, 250, 0.25)";
+          zone.strength = 0.35; // multiply gravity
+          break;
+        case "high-gravity":
+          zone.label = "High-G";
+          zone.color = "rgba(248, 113, 113, 0.25)";
+          zone.strength = 1.9;
+          break;
+        case "slow":
+          zone.label = "Slow";
+          zone.color = "rgba(196, 181, 253, 0.25)";
+          zone.strength = 0.45; // multiply velocity
+          break;
+        case "fast":
+          zone.label = "Fast";
+          zone.color = "rgba(251, 191, 36, 0.25)";
+          zone.strength = 1.7;
+          break;
+        case "bouncy":
+          zone.label = "Bounce+";
+          zone.color = "rgba(52, 211, 153, 0.25)";
+          zone.strength = 1.25; // multiply wallBounce locally
+          break;
+        default:
+          zone.label = "Zone";
+          zone.color = "rgba(148, 163, 184, 0.25)";
+          break;
+      }
+
+      ZONES.list.push(zone);
+      ZONES.enabled = true;
+      return zone;
+    }
+
+    function clearZones() {
+      ZONES.list = [];
+      ZONES.enabled = false;
+    }
+
+    function isPointInZone(zone, x, y) {
+      return (
+        x >= zone.x &&
+        x <= zone.x + zone.width &&
+        y >= zone.y &&
+        y <= zone.y + zone.height
+      );
+    }
+
+    function applyZoneToBall(zone, ball) {
+      if (!isPointInZone(zone, ball.x, ball.y)) return;
+
+      switch (zone.type) {
+        case "low-gravity":
+          ball.vy *= zone.strength;
+          break;
+
+        case "high-gravity":
+          ball.vy *= zone.strength;
+          break;
+
+        case "slow":
+          ball.vx *= zone.strength;
+          ball.vy *= zone.strength;
+          break;
+
+        case "fast":
+          ball.vx *= zone.strength;
+          ball.vy *= zone.strength;
+          break;
+
+        case "bouncy":
+          // simulate local boost by reflecting some vertical velocity
+          if (ball.vy > 0) {
+            ball.vy = -Math.abs(ball.vy) * zone.strength;
+          }
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    function applyZonesToWorld() {
+      if (!ZONES.enabled || ZONES.list.length === 0) return;
+
+      for (const b of world.balls) {
+        for (const z of ZONES.list) {
+          applyZoneToBall(z, b);
+        }
+      }
+    }
+
+    // patch zones into physics chain
+    const STEP_WITH_TRAILS = stepPhysics;
+    stepPhysics = function (dt) {
+      STEP_WITH_TRAILS(dt);
+      applyZonesToWorld();
+    };
+
+    /*************************************************
+     * 26. DRAW ZONES OVERLAY
+     *************************************************/
+    function drawZones() {
+      if (!ZONES.enabled || ZONES.list.length === 0) return;
+
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 4]);
+      ctx.font = "10px system-ui";
+
+      for (const z of ZONES.list) {
+        ctx.fillStyle = z.color || "rgba(148, 163, 184, 0.25)";
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.6)";
+
+        ctx.beginPath();
+        ctx.rect(z.x, z.y, z.width, z.height);
+        ctx.fill();
+        ctx.stroke();
+
+        if (z.label) {
+          ctx.fillStyle = "#e5e7eb";
+          ctx.fillText(z.label, z.x + 6, z.y + 14);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // hook zones into rendering flow (background → zones → trails → balls)
+    const OLD_DRAW_BACKGROUND = drawBackground;
+    drawBackground = function () {
+      OLD_DRAW_BACKGROUND();
+      drawZones();
+    };
+
+    /*************************************************
+     * 27. AI COMMANDS FOR ZONES
+     *************************************************/
+    function createCenteredZone(type) {
+      const w = world.width * 0.45;
+      const h = world.height * 0.45;
+      const x = (world.width - w) / 2;
+      const y = (world.height - h) / 2;
+      return createZone(x, y, w, h, type);
+    }
+
+    function handleZoneCommands(lower) {
+      if (lower.includes("clear zones") || lower.includes("remove zones")) {
+        clearZones();
+        addMessage("bot", "All zones cleared. World is uniform again.");
+        return true;
+      }
+
+      if (lower.includes("zone low gravity") ||
+        lower.includes("low gravity zone")) {
+        createCenteredZone("low-gravity");
+        addMessage("bot", "Created a LOW-GRAVITY zone in the center.");
+        return true;
+      }
+
+      if (lower.includes("zone high gravity") ||
+        lower.includes("heavy zone") ||
+        lower.includes("high gravity zone")) {
+        createCenteredZone("high-gravity");
+        addMessage("bot", "Created a HIGH-GRAVITY zone in the center.");
+        return true;
+      }
+
+      if (lower.includes("slow zone") ||
+        lower.includes("slow motion zone")) {
+        createCenteredZone("slow");
+        addMessage("bot", "Created a SLOW-MOTION zone in the center.");
+        return true;
+      }
+
+      if (lower.includes("fast zone") ||
+        lower.includes("speed zone")) {
+        createCenteredZone("fast");
+        addMessage("bot", "Created a FAST zone in the center – velocities will boost inside it.");
+        return true;
+      }
+
+      if (lower.includes("bouncy zone")) {
+        createCenteredZone("bouncy");
+        addMessage("bot", "Created a BOUNCY zone – balls will rebound harder when passing through.");
+        return true;
+      }
+
+      if (lower.includes("what zones") ||
+        lower.includes("list zones")) {
+        if (ZONES.list.length === 0) {
+          addMessage("bot", "There are no active zones right now.");
+          return true;
+        }
+        addMessage("bot", `There are ${ZONES.list.length} active zone(s):`);
+        ZONES.list.forEach((z, i) => {
+          addMessage(
+            "bot",
+            `#${i}: type=${z.type}, pos=(${z.x.toFixed(0)},${z.y.toFixed(0)}), size=${z.width.toFixed(0)}×${z.height.toFixed(0)}`
+          );
+        });
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_7 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleZoneCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_7(lower);
+    };
+
+    /*************************************************
+     * 28. WORLD SNAPSHOT / RESTORE (TIME MACHINE LITE)
+     *************************************************/
+    const SNAPSHOTS = {
+      slots: {},
+      maxSlots: 5
+    };
+
+    function snapshotWorld() {
+      const snapshot = {
+        gravity: world.gravity,
+        timeScale: world.timeScale,
+        mode: world.mode,
+        balls: world.balls.map(b => ({
+          x: b.x,
+          y: b.y,
+          vx: b.vx,
+          vy: b.vy,
+          radius: b.radius,
+          mass: b.mass,
+          baseMass: b.baseMass,
+          material: b.material,
+          materialLabel: b.materialLabel,
+          materialHint: b.materialHint,
+          materialStroke: b.materialStroke
+        })),
+        zones: ZONES.list.map(z => ({ ...z })),
+        frozen,
+        debugEnabled: debug.enabled,
+        trailsEnabled: TRAILS.enabled
+      };
+      return snapshot;
+    }
+
+    function applySnapshot(snapshot) {
+      if (!snapshot) return;
+      world.gravity = snapshot.gravity;
+      world.timeScale = snapshot.timeScale;
+      world.mode = snapshot.mode;
+
+      world.balls = snapshot.balls.map(b => ({
+        ...b,
+        trail: [] // reset trail history on restore
+      }));
+
+      ZONES.list = snapshot.zones.map(z => ({ ...z }));
+      ZONES.enabled = ZONES.list.length > 0;
+
+      frozen = snapshot.frozen;
+      debug.enabled = snapshot.debugEnabled;
+      TRAILS.enabled = snapshot.trailsEnabled;
+    }
+
+    function saveSnapshotSlot(slotName) {
+      if (!slotName) slotName = "slot1";
+      SNAPSHOTS.slots[slotName] = snapshotWorld();
+      addMessage("bot", `Saved a snapshot into "${slotName}".`);
+    }
+
+    function loadSnapshotSlot(slotName) {
+      if (!slotName) slotName = "slot1";
+      const s = SNAPSHOTS.slots[slotName];
+      if (!s) {
+        addMessage("bot", `No snapshot stored in "${slotName}".`);
+        return;
+      }
+      applySnapshot(s);
+      addMessage("bot", `Restored snapshot from "${slotName}".`);
+    }
+
+    function listSnapshotSlots() {
+      const keys = Object.keys(SNAPSHOTS.slots);
+      if (keys.length === 0) {
+        addMessage("bot", "No snapshots saved yet.");
+        return;
+      }
+      addMessage("bot", "Saved snapshot slots:");
+      for (const key of keys) {
+        addMessage("bot", `• ${key}`);
+      }
+    }
+
+    function handleSnapshotCommands(lower) {
+      if (lower.startsWith("save snap") || lower.startsWith("save snapshot")) {
+        const name = lower.replace("save snapshot", "")
+          .replace("save snap", "")
+          .trim() || "slot1";
+        saveSnapshotSlot(name);
+        return true;
+      }
+
+      if (lower.startsWith("load snap") || lower.startsWith("load snapshot")) {
+        const name = lower.replace("load snapshot", "")
+          .replace("load snap", "")
+          .trim() || "slot1";
+        loadSnapshotSlot(name);
+        return true;
+      }
+
+      if (lower.includes("list snapshots") || lower.includes("what snapshots")) {
+        listSnapshotSlots();
+        return true;
+      }
+
+      if (lower.includes("quick save")) {
+        saveSnapshotSlot("quick");
+        return true;
+      }
+
+      if (lower.includes("quick load")) {
+        loadSnapshotSlot("quick");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_8 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleSnapshotCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_8(lower);
+    };
+
+    /*************************************************
+     * 29. MINI SCRIPT MACROS (TINY SEQUENCES)
+     *************************************************/
+    const MACROS = {
+      scripts: {}
+    };
+
+    function defineMacro(name, actions) {
+      MACROS.scripts[name] = actions;
+      addMessage("bot", `Macro "${name}" defined with ${actions.length} action(s).`);
+    }
+
+    async function runMacro(name) {
+      const script = MACROS.scripts[name];
+      if (!script) {
+        addMessage("bot", `Macro "${name}" not found.`);
+        return;
+      }
+
+      addMessage("bot", `Running macro "${name}"...`);
+
+      for (const step of script) {
+        if (typeof step === "string") {
+          // treat as command
+          handleUserCommand(step);
+        } else if (typeof step === "number") {
+          // treat as delay in ms
+          await new Promise(res => setTimeout(res, step));
+        }
+      }
+
+      addMessage("bot", `Macro "${name}" finished.`);
+    }
+
+    function handleMacroCommands(lower) {
+      // simple pre-baked macro: "calm demo"
+      if (lower.includes("macro calm demo")) {
+        defineMacro("calm-demo", [
+          "clear",
+          200,
+          "spawn 20 balls",
+          400,
+          "low energy mode",
+          300,
+          "trails on",
+          400,
+          "calm mode"
+        ]);
+        return true;
+      }
+
+      if (lower.startsWith("run macro")) {
+        const name = lower.replace("run macro", "").trim();
+        if (!name) {
+          addMessage("bot", 'Please specify a macro name, e.g. "run macro calm-demo".');
+          return true;
+        }
+        runMacro(name);
+        return true;
+      }
+
+      if (lower.includes("list macros")) {
+        const keys = Object.keys(MACROS.scripts);
+        if (keys.length === 0) {
+          addMessage("bot", "No macros defined yet. Try 'macro calm demo' to register one.");
+          return true;
+        }
+        addMessage("bot", "Defined macros:");
+        keys.forEach(k => addMessage("bot", "• " + k));
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_9 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleMacroCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_9(lower);
+    };
+
+    /*************************************************
+     * 30. NEXT: LOGGER / EVENT FEED (COMING UP)
+     *************************************************/
+    const LOGGER = {
+      enabled: true,
+      events: [],
+      maxEvents: 80
+    };
+
+    function logEvent(kind, details) {
+      if (!LOGGER.enabled) return;
+      LOGGER.events.push({
+        time: performance.now(),
+        kind,
+        details
+      });
+      if (LOGGER.events.length > LOGGER.maxEvents) {
+        LOGGER.events.shift();
+      }
+    }
+
+    // integrate a few logs in critical actions
+    const OLD_CREATE_BALL = createBall;
+    createBall = function (x, y, powerScale = 1) {
+      logEvent("spawn", `Ball at (${x.toFixed(1)}, ${y.toFixed(1)}) powerScale=${powerScale.toFixed(2)}`);
+      return OLD_CREATE_BALL(x, y, powerScale);
+    };
+
+    const OLD_WORLD_CLEAR = world.balls;
+    // we won't override array itself, but we log in commands that clear
+
+    // log in snapshot save/load
+    const OLD_SAVE_SNAPSHOT_SLOT = saveSnapshotSlot;
+    saveSnapshotSlot = function (slotName) {
+      logEvent("snapshot-save", `Saved slot "${slotName}"`);
+      return OLD_SAVE_SNAPSHOT_SLOT(slotName);
+    };
+
+    const OLD_LOAD_SNAPSHOT_SLOT = loadSnapshotSlot;
+    loadSnapshotSlot = function (slotName) {
+      logEvent("snapshot-load", `Loaded slot "${slotName}"`);
+      return OLD_LOAD_SNAPSHOT_SLOT(slotName);
+    };
+
+    function handleLoggerCommands(lower) {
+      if (lower.includes("logger off")) {
+        LOGGER.enabled = false;
+        addMessage("bot", "Event logger disabled.");
+        return true;
+      }
+
+      if (lower.includes("logger on")) {
+        LOGGER.enabled = true;
+        addMessage("bot", "Event logger enabled.");
+        return true;
+      }
+
+      if (lower.includes("show log") || lower.includes("show events")) {
+        if (LOGGER.events.length === 0) {
+          addMessage("bot", "No logged events yet.");
+          return true;
+        }
+        addMessage("bot", "Recent events:");
+        LOGGER.events.slice(-8).forEach(ev => {
+          addMessage("bot", `• [${ev.kind}] ${ev.details}`);
+        });
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_10 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleLoggerCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_10(lower);
+    };
+
+    /*************************************************
+     * 31. FINAL HOOKS & INIT (NEAR CURRENT LIMIT)
+     *************************************************/
+    // we already patched mainLoop, stepPhysics, draw functions, AI handler, etc.
+    // at this stage the system is modular enough to keep stacking more systems.
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // next: we can add UI keyboard shortcuts, global reset, or even mini tutorials
+    /*************************************************
+ * 32. KEYBOARD SHORTCUT SYSTEM
+ *************************************************/
+    const KEYS = {
+      enabled: true,
+      map: {}
+    };
+
+    function registerKey(key, description, handler) {
+      KEYS.map[key.toLowerCase()] = {
+        description,
+        handler
+      };
+    }
+
+    function initKeyboardShortcuts() {
+      // Core controls
+      registerKey("c", "Clear all balls", () => {
+        world.balls = [];
+        addMessage("bot", "Cleared all balls via keyboard.");
+      });
+
+      registerKey("r", "Random materials", () => {
+        randomizeMaterials();
+        addMessage("bot", "Randomized all materials via keyboard.");
+      });
+
+      registerKey("t", "Toggle trails", () => {
+        TRAILS.enabled = !TRAILS.enabled;
+        addMessage("bot", `Trails ${TRAILS.enabled ? "enabled" : "disabled"}.`);
+      });
+
+      registerKey("f", "Freeze / Unfreeze", () => {
+        frozen = !frozen;
+        addMessage("bot", frozen ? "Frozen via keyboard." : "Unfrozen via keyboard.");
+      });
+
+      registerKey("d", "Toggle debug overlay", () => {
+        debug.enabled = !debug.enabled;
+        addMessage("bot", debug.enabled ? "Debug enabled." : "Debug disabled.");
+      });
+
+      registerKey("z", "Create low-gravity zone", () => {
+        createCenteredZone("low-gravity");
+        addMessage("bot", "Low-gravity zone created.");
+      });
+
+      registerKey("x", "Create high-gravity zone", () => {
+        createCenteredZone("high-gravity");
+        addMessage("bot", "High-gravity zone created.");
+      });
+
+      registerKey("v", "Create vortex field", () => {
+        fields.vortex = !fields.vortex;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+        addMessage("bot", fields.vortex ? "Vortex field ON." : "Vortex field OFF.");
+      });
+
+      registerKey("m", "Toggle magnet field", () => {
+        fields.magnet = !fields.magnet;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+        addMessage("bot", fields.magnet ? "Magnet field ON." : "Magnet field OFF.");
+      });
+
+      registerKey("1", "Normal mode", () => setMode("normal"));
+      registerKey("2", "Rain mode", () => setMode("rain"));
+      registerKey("3", "Chaos mode", () => setMode("chaos"));
+      registerKey("4", "Calm mode", () => setMode("calm"));
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (!KEYS.enabled) return;
+
+      const key = e.key.toLowerCase();
+      const entry = KEYS.map[key];
+      if (!entry) return;
+
+      e.preventDefault();
+      entry.handler();
+    });
+
+    initKeyboardShortcuts();
+
+    /*************************************************
+     * 33. TUTORIAL / HELP SYSTEM
+     *************************************************/
+    const TUTORIAL = {
+      active: false,
+      stepIndex: 0,
+      steps: [
+        "Welcome to the Physics + AI Sandbox.",
+        "Click and drag on the left canvas to spawn and throw balls.",
+        "Use the chat panel to type commands like: spawn 20 balls.",
+        "Try special modes: rain mode, chaos mode, calm mode.",
+        "Enable trails for cinematic motion: trails on.",
+        "Create zones: low gravity zone, high gravity zone, slow zone.",
+        "Select a ball by clicking on it to inspect it.",
+        "Try inspect fastest or inspect highest.",
+        "Save snapshots using: save snapshot demo.",
+        "Restore them with: load snapshot demo.",
+        "Use keyboard shortcuts for fast control.",
+        "You are now ready to experiment freely."
+      ]
+    };
+
+    function startTutorial() {
+      TUTORIAL.active = true;
+      TUTORIAL.stepIndex = 0;
+      showTutorialStep();
+    }
+
+    function showTutorialStep() {
+      if (!TUTORIAL.active) return;
+
+      const text = TUTORIAL.steps[TUTORIAL.stepIndex];
+      if (!text) {
+        TUTORIAL.active = false;
+        addMessage("bot", "Tutorial completed. You're on your own now.");
+        return;
+      }
+
+      addMessage("bot", `[Tutorial ${TUTORIAL.stepIndex + 1}/${TUTORIAL.steps.length}] ${text}`);
+    }
+
+    function nextTutorialStep() {
+      if (!TUTORIAL.active) return;
+      TUTORIAL.stepIndex++;
+      showTutorialStep();
+    }
+
+    function handleTutorialCommands(lower) {
+      if (lower.includes("start tutorial")) {
+        startTutorial();
+        return true;
+      }
+
+      if (lower.includes("next tutorial")) {
+        nextTutorialStep();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_11 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleTutorialCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_11(lower);
+    };
+
+    /*************************************************
+     * 34. GLOBAL RESET + SAFE MODE
+     *************************************************/
+    const SAFE_MODE = {
+      enabled: false
+    };
+
+    function globalReset() {
+      world.balls = [];
+      world.gravity = 0.4;
+      world.timeScale = 1.0;
+      world.mode = "normal";
+
+      clearZones();
+      fields.magnet = false;
+      fields.vortex = false;
+
+      debug.enabled = true;
+      TRAILS.enabled = false;
+
+      selectedBallIndex = -1;
+
+      addMessage("bot", "Global reset complete. World restored to defaults.");
+      logEvent("reset", "Global reset executed");
+    }
+
+    function setSafeMode(on) {
+      SAFE_MODE.enabled = on;
+
+      if (on) {
+        world.timeScale = Math.min(world.timeScale, 0.6);
+        world.gravity = Math.min(world.gravity, 0.35);
+        debug.enabled = false;
+        TRAILS.enabled = false;
+        addMessage("bot", "SAFE MODE enabled. Energy and visuals reduced.");
+      } else {
+        addMessage("bot", "SAFE MODE disabled. Full control restored.");
+      }
+    }
+
+    function handleSafetyCommands(lower) {
+      if (lower.includes("safe mode on")) {
+        setSafeMode(true);
+        return true;
+      }
+
+      if (lower.includes("safe mode off")) {
+        setSafeMode(false);
+        return true;
+      }
+
+      if (lower.includes("global reset") || lower.includes("hard reset")) {
+        globalReset();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_12 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleSafetyCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_12(lower);
+    };
+
+    /*************************************************
+     * 35. PERFORMANCE THROTTLING (AUTO)
+     *************************************************/
+    const PERF = {
+      lastCheck: performance.now(),
+      enabled: true,
+      thresholdBalls: 900
+    };
+
+    function autoThrottle() {
+      if (!PERF.enabled) return;
+
+      if (world.balls.length > PERF.thresholdBalls) {
+        TRAILS.enabled = false;
+        debug.enabled = false;
+        world.timeScale = Math.min(world.timeScale, 0.7);
+        logEvent("throttle", "Performance throttling activated");
+      }
+    }
+
+    const OLD_MAIN_LOOP_3 = mainLoop;
+    mainLoop = function (timestamp) {
+      autoThrottle();
+      OLD_MAIN_LOOP_3(timestamp);
+    };
+
+    /*************************************************
+     * 36. META COMMANDS (SYSTEM STATE DUMP)
+     *************************************************/
+    function dumpSystemState() {
+      const state = {
+        balls: world.balls.length,
+        gravity: world.gravity,
+        timeScale: world.timeScale,
+        mode: world.mode,
+        frozen,
+        trails: TRAILS.enabled,
+        debug: debug.enabled,
+        zones: ZONES.list.length,
+        magnet: fields.magnet,
+        vortex: fields.vortex,
+        safeMode: SAFE_MODE.enabled
+      };
+
+      addMessage("bot", "=== SYSTEM STATE ===");
+      Object.keys(state).forEach(k => {
+        addMessage("bot", `${k}: ${state[k]}`);
+      });
+    }
+
+    function handleMetaCommands(lower) {
+      if (lower.includes("system state") || lower.includes("dump state")) {
+        dumpSystemState();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_13 = handleAdvancedCommands;
+    handleUserCommand = function (text) {
+      const lower = text.toLowerCase().trim();
+
+      if (handleMetaCommands(lower)) return;
+
+      // keep full chain alive
+      OLD_HANDLE_ADVANCED_13(lower);
+    };
+
+    /*************************************************
+     * 37. FINAL BOOTSTRAP MARKER
+     *************************************************/
+    logEvent("boot", "Sandbox systems fully initialized");
+
+    addMessage("system", "Advanced sandbox online. Type 'start tutorial' or 'help'.");
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // Next upgrades: 
+    // - Graph overlays for energy
+    // - Sound effects
+    // - Export/import world as JSON
+    // - Multi-canvas split mode
+    /*************************************************
+ * 38. ENERGY GRAPH OVERLAY (TINY HUD CHART)
+ *************************************************/
+    const ENERGY_GRAPH = {
+      enabled: true,
+      width: 160,
+      height: 60,
+      padding: 10
+    };
+
+    function drawEnergyGraph() {
+      if (!ENERGY_GRAPH.enabled) return;
+      if (ENERGY.samples.length < 2) return;
+
+      const w = ENERGY_GRAPH.width;
+      const h = ENERGY_GRAPH.height;
+      const pad = ENERGY_GRAPH.padding;
+
+      const originX = canvas.width - w - pad;
+      const originY = pad;
+
+      ctx.save();
+
+      // background panel
+      ctx.fillStyle = "rgba(15,23,42,0.8)";
+      ctx.fillRect(originX, originY, w, h);
+
+      // border
+      ctx.strokeStyle = "rgba(55,65,81,0.9)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(originX, originY, w, h);
+
+      // compute ranges
+      let maxK = 0;
+      let maxV = 0;
+      for (const s of ENERGY.samples) {
+        if (s.k > maxK) maxK = s.k;
+        if (s.v > maxV) maxV = s.v;
+      }
+      maxK = maxK || 1;
+      maxV = maxV || 1;
+
+      const innerW = w - 12;
+      const innerH = h - 16;
+      const startX = originX + 6;
+      const startY = originY + 8;
+
+      // kinetic energy curve
+      ctx.beginPath();
+      ENERGY.samples.forEach((s, i) => {
+        const t = i / Math.max(ENERGY.samples.length - 1, 1);
+        const x = startX + t * innerW;
+        const y = startY + innerH - (s.k / maxK) * innerH;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "rgba(248, 113, 113, 0.9)"; // reddish line
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // avg speed curve (fainter)
+      ctx.beginPath();
+      ENERGY.samples.forEach((s, i) => {
+        const t = i / Math.max(ENERGY.samples.length - 1, 1);
+        const x = startX + t * innerW;
+        const y = startY + innerH - (s.v / maxV) * innerH;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "rgba(96, 165, 250, 0.8)"; // bluish
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // labels
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "9px system-ui";
+      ctx.fillText("Energy", originX + 6, originY + 10);
+      ctx.fillText("Speed", originX + 6, originY + 20);
+
+      ctx.restore();
+    }
+
+    // patch energy graph into debug drawing pipeline
+    const OLD_DRAW_DEBUG = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG();
+      drawEnergyGraph();
+    };
+
+    /*************************************************
+     * 39. ENERGY GRAPH COMMANDS
+     *************************************************/
+    function handleEnergyGraphCommands(lower) {
+      if (lower.includes("hide energy graph") ||
+        lower.includes("energy graph off")) {
+        ENERGY_GRAPH.enabled = false;
+        addMessage("bot", "Energy graph hidden.");
+        return true;
+      }
+
+      if (lower.includes("show energy graph") ||
+        lower.includes("energy graph on")) {
+        ENERGY_GRAPH.enabled = true;
+        addMessage("bot", "Energy graph shown.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_14 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower) {
+      if (handleEnergyGraphCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_14(lower);
+    };
+
+    /*************************************************
+     * 40. JSON EXPORT / IMPORT (WORLD SNAPSHOT)
+     *************************************************/
+    function exportWorldToJSON() {
+      const data = {
+        gravity: world.gravity,
+        timeScale: world.timeScale,
+        mode: world.mode,
+        balls: world.balls.map(b => ({
+          x: b.x,
+          y: b.y,
+          vx: b.vx,
+          vy: b.vy,
+          radius: b.radius,
+          mass: b.mass,
+          baseMass: b.baseMass,
+          material: b.material,
+          materialLabel: b.materialLabel,
+          materialHint: b.materialHint,
+          materialStroke: b.materialStroke
+        })),
+        zones: ZONES.list.map(z => ({
+          x: z.x,
+          y: z.y,
+          width: z.width,
+          height: z.height,
+          type: z.type,
+          strength: z.strength,
+          label: z.label,
+          color: z.color
+        }))
+      };
+
+      try {
+        const json = JSON.stringify(data);
+        return json;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function importWorldFromJSON(json) {
+      try {
+        const data = JSON.parse(json);
+        world.gravity = data.gravity ?? world.gravity;
+        world.timeScale = data.timeScale ?? world.timeScale;
+        world.mode = data.mode ?? world.mode;
+
+        world.balls = (data.balls || []).map(b => ({
+          ...b,
+          trail: []
+        }));
+
+        ZONES.list = (data.zones || []).map(z => ({ ...z }));
+        ZONES.enabled = ZONES.list.length > 0;
+
+        addMessage("bot", `Imported world from JSON with ${world.balls.length} balls and ${ZONES.list.length} zone(s).`);
+      } catch (e) {
+        addMessage("bot", "Failed to import world from JSON (parse error).");
+      }
+    }
+
+    function handleJsonCommands(lower, originalText) {
+      if (lower.startsWith("export json")) {
+        const json = exportWorldToJSON();
+        if (!json) {
+          addMessage("bot", "Failed to export world to JSON.");
+          return true;
+        }
+
+        // print in chunks so it doesn't explode the chat
+        addMessage("bot", "World JSON export (copy from messages below):");
+        const chunkSize = 200;
+        for (let i = 0; i < json.length; i += chunkSize) {
+          addMessage("bot", json.slice(i, i + chunkSize));
+        }
+        return true;
+      }
+
+      if (lower.startsWith("import json")) {
+        // everything after "import json" treated as the JSON string
+        const raw = originalText.slice(originalText.toLowerCase().indexOf("import json") + "import json".length).trim();
+        if (!raw) {
+          addMessage("bot", "Provide JSON after 'import json'.");
+          return true;
+        }
+        importWorldFromJSON(raw);
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_15 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalTextForJson) {
+      // keep signature compatible with older callers:
+      // older callers pass only lower, but we can treat missing second arg
+      const original = typeof originalTextForJson === "string" ? originalTextForJson : lower;
+
+      if (handleJsonCommands(lower, original)) return true;
+      return OLD_HANDLE_ADVANCED_15(lower);
+    };
+
+    /*************************************************
+     * 41. SIMPLE SOUND EFFECTS (WEB AUDIO)
+     *************************************************/
+    const SOUND = {
+      enabled: false,
+      audioCtx: null,
+      lastTime: 0
+    };
+
+    function initAudio() {
+      if (SOUND.audioCtx) return;
+      try {
+        SOUND.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch {
+        addMessage("system", "AudioContext not available.");
+      }
+    }
+
+    function playBlip(frequency = 440, duration = 0.08, volume = 0.15) {
+      if (!SOUND.enabled) return;
+      if (!SOUND.audioCtx) initAudio();
+      if (!SOUND.audioCtx) return;
+
+      const ctxAudio = SOUND.audioCtx;
+      const now = ctxAudio.currentTime;
+      const osc = ctxAudio.createOscillator();
+      const gain = ctxAudio.createGain();
+
+      osc.frequency.value = frequency;
+      osc.type = "sine";
+
+      gain.gain.setValueAtTime(volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(ctxAudio.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    function soundOnBounce(ball) {
+      const speed = Math.sqrt((ball.vx || 0) ** 2 + (ball.vy || 0) ** 2);
+      const freq = 180 + Math.min(speed * 8, 900);
+      playBlip(freq, 0.05, 0.1);
+    }
+
+    // patch floor collision in physics to trigger sound
+    const STEP_BEFORE_SOUND = stepPhysics;
+    stepPhysics = function (dt) {
+      const prevPositions = world.balls.map(b => ({ y: b.y }));
+
+      STEP_BEFORE_SOUND(dt);
+
+      // detect "floor hits": y before > y after? not ideal, but simple:
+      for (let i = 0; i < world.balls.length; i++) {
+        const b = world.balls[i];
+        const prevY = prevPositions[i]?.y ?? b.y;
+        const hitFloor = prevY < world.height - b.radius - 0.5 &&
+          b.y >= world.height - b.radius - 0.5 &&
+          (b.vy || 0) > 0.5;
+        if (hitFloor) {
+          soundOnBounce(b);
+        }
+      }
+    };
+
+    function handleSoundCommands(lower) {
+      if (lower.includes("sound on")) {
+        SOUND.enabled = true;
+        initAudio();
+        addMessage("bot", "Sound effects enabled (bounces and events).");
+        playBlip(420, 0.12, 0.25);
+        return true;
+      }
+
+      if (lower.includes("sound off")) {
+        SOUND.enabled = false;
+        addMessage("bot", "Sound effects disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_16 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalTextMaybe) {
+      if (handleSoundCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_16(lower, originalTextMaybe);
+    };
+
+    /*************************************************
+     * 42. FIX HANDLEUSERCOMMAND CHAIN (RESTORE BASICS)
+     *************************************************/
+    // At this stage, handleAdvancedCommands = huge chain with all systems.
+    // We still want the original simple spawn/gravity/time commands too.
+    // That logic lives in oldHandleUserCommand (captured much earlier).
+
+    const CORE_HANDLE_USER = typeof oldHandleUserCommand === "function"
+      ? oldHandleUserCommand
+      : function (text) {
+        // ultra simple fallback if something breaks
+        addMessage("user", text);
+        addMessage("bot", "Core command handler missing, but advanced systems still work.");
+      };
+
+    handleUserCommand = function (text) {
+      const lower = String(text || "").toLowerCase().trim();
+
+      // Always show what the user typed
+      addMessage("user", text);
+
+      // 1) Meta / system-level first
+      if (handleMetaCommands(lower)) return;
+
+      // 2) Advanced features (material, zones, macros, etc.)
+      if (handleAdvancedCommands(lower, text)) return;
+
+      // 3) Fallback to core handler for base commands:
+      CORE_HANDLE_USER(text);
+    };
+
+    /*************************************************
+     * 43. MINI HELP DUMP FOR KEYBOARD + SYSTEM
+     *************************************************/
+    function showQuickHelp() {
+      addMessage("bot", "Quick help:");
+      addMessage("bot", "- Mouse: drag to spawn & throw balls; click to select a ball.");
+      addMessage("bot", "- Core chat commands: spawn N balls, gravity X, time X, slow motion, chaos mode, rain mode, calm mode, clear, freeze, unfreeze.");
+      addMessage("bot", "- Advanced: trails on/off, random materials, low gravity zone, high gravity zone, slow zone, fast zone, bouncy zone.");
+      addMessage("bot", "- Snapshots: save snapshot NAME, load snapshot NAME, list snapshots.");
+      addMessage("bot", "- Energy: energy state, high energy mode, low energy mode, show energy graph / hide energy graph.");
+      addMessage("bot", "- Sound: sound on, sound off.");
+      addMessage("bot", "- Safe: safe mode on/off, global reset.");
+      addMessage("bot", "- Keyboard: C=clear, R=random materials, T=trails, F=freeze, D=debug, Z/X=gravity zones, V/M=vortex/magnet, 1–4=world modes.");
+    }
+
+    function handleHelpCommands(lower) {
+      if (lower === "help" || lower.includes("help me") || lower === "h") {
+        showQuickHelp();
+        return true;
+      }
+      return false;
+    }
+
+    // final wrap layer around handleUserCommand to inject help
+    const RAW_HANDLE_USER = handleUserCommand;
+    handleUserCommand = function (text) {
+      const lower = String(text || "").toLowerCase().trim();
+
+      if (handleHelpCommands(lower)) {
+        // user message already shown inside RAW_HANDLE_USER, so call it for consistency
+        RAW_HANDLE_USER(text);
+        return;
+      }
+
+      RAW_HANDLE_USER(text);
+    };
+
+    /*************************************************
+     * 44. FINAL NOTE
+     *************************************************/
+    // System is now a full mini "engine" inside a single <script>.
+    // Further expansions can keep layering on top of:
+    // - handleAdvancedCommands
+    // - stepPhysics
+    // - drawBackground / drawBalls / drawDebug
+    // - handleUserCommand
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // Next upgrades idea list:
+    //  - Split-screen second canvas that mirrors or time-shifts the world
+    //  - Recording + playback of user commands
+    //  - On-canvas UI controls (buttons/sliders) for gravity & timescale
+    /*************************************************
+ * 45. COMMAND RECORDING + PLAYBACK
+ *************************************************/
+    const RECORDER = {
+      recording: false,
+      startTime: 0,
+      events: [],   // { t, text }
+      playing: false,
+      playStart: 0,
+      playIndex: 0
+    };
+
+    function startRecording() {
+      RECORDER.recording = true;
+      RECORDER.startTime = performance.now();
+      RECORDER.events = [];
+      addMessage("bot", "Started recording commands.");
+      logEvent("record-start", "Command recording started");
+    }
+
+    function stopRecording() {
+      RECORDER.recording = false;
+      const count = RECORDER.events.length;
+      addMessage("bot", `Stopped recording. Captured ${count} command(s).`);
+      logEvent("record-stop", `Command recording stopped with ${count} events`);
+    }
+
+    function recordCommand(text) {
+      if (!RECORDER.recording) return;
+      const now = performance.now();
+      RECORDER.events.push({
+        t: now - RECORDER.startTime,
+        text: text
+      });
+    }
+
+    function startPlayback() {
+      if (RECORDER.events.length === 0) {
+        addMessage("bot", "No recorded commands to play back.");
+        return;
+      }
+      RECORDER.playing = true;
+      RECORDER.playStart = performance.now();
+      RECORDER.playIndex = 0;
+      addMessage("bot", "Started playback of recorded commands.");
+      logEvent("record-play", "Command playback started");
+    }
+
+    function stopPlayback() {
+      if (!RECORDER.playing) return;
+      RECORDER.playing = false;
+      addMessage("bot", "Stopped playback.");
+      logEvent("record-play-stop", "Command playback stopped");
+    }
+
+    function tickPlayback() {
+      if (!RECORDER.playing) return;
+      const now = performance.now();
+      const elapsed = now - RECORDER.playStart;
+
+      while (
+        RECORDER.playIndex < RECORDER.events.length &&
+        RECORDER.events[RECORDER.playIndex].t <= elapsed
+      ) {
+        const evt = RECORDER.events[RECORDER.playIndex];
+        RECORDER.playIndex++;
+
+        // execute recorded command
+        RAW_HANDLE_USER(evt.text);
+      }
+
+      if (RECORDER.playIndex >= RECORDER.events.length) {
+        stopPlayback();
+      }
+    }
+
+    // hook into main loop to advance playback timing
+    const OLD_MAIN_LOOP_4 = mainLoop;
+    mainLoop = function (timestamp) {
+      tickPlayback();
+      OLD_MAIN_LOOP_4(timestamp);
+    };
+
+    function handleRecorderCommands(lower) {
+      if (lower.includes("start recording")) {
+        startRecording();
+        return true;
+      }
+
+      if (lower.includes("stop recording")) {
+        stopRecording();
+        return true;
+      }
+
+      if (lower.includes("play recording") ||
+        lower.includes("playback recording") ||
+        lower.includes("replay commands")) {
+        startPlayback();
+        return true;
+      }
+
+      if (lower.includes("stop playback") ||
+        lower.includes("stop replay")) {
+        stopPlayback();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_17 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalTextMaybe) {
+      if (handleRecorderCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_17(lower, originalTextMaybe);
+    };
+
+    // wrap handleUserCommand one more time to log for recording
+    const PRE_RECORD_HANDLE_USER = handleUserCommand;
+    handleUserCommand = function (text) {
+      recordCommand(text);
+      PRE_RECORD_HANDLE_USER(text);
+    };
+
+    /*************************************************
+     * 46. ON-CANVAS UI CONTROLS (SLIDERS)
+     *************************************************/
+    const UI = {
+      controls: [],
+      draggingControl: null,
+      dragOffsetX: 0,
+      dragOffsetY: 0
+    };
+
+    function createSlider(label, x, y, width, min, max, getValue, setValue) {
+      const slider = {
+        type: "slider",
+        label,
+        x,
+        y,
+        width,
+        height: 22,
+        min,
+        max,
+        getValue,
+        setValue
+      };
+      UI.controls.push(slider);
+      return slider;
+    }
+
+    function initOnCanvasUI() {
+      // gravity slider
+      createSlider(
+        "Gravity",
+        16,
+        canvas.height - 110,
+        160,
+        0.05,
+        1.5,
+        () => world.gravity,
+        (v) => { world.gravity = v; }
+      );
+
+      // time scale slider
+      createSlider(
+        "Time",
+        16,
+        canvas.height - 80,
+        160,
+        0.1,
+        2.0,
+        () => world.timeScale,
+        (v) => { world.timeScale = v; }
+      );
+    }
+
+    // adjust UI Y when canvas resizes
+    const OLD_RESIZE_CANVAS = resizeCanvas;
+    resizeCanvas = function () {
+      OLD_RESIZE_CANVAS();
+      // re-init or reposition UI sliders on resize
+      UI.controls = [];
+      initOnCanvasUI();
+    };
+
+    function drawSlider(ctrl) {
+      const { x, y, width, height, min, max, getValue } = ctrl;
+      const value = getValue();
+      const t = (value - min) / (max - min);
+      const clampedT = Math.min(Math.max(t, 0), 1);
+
+      const trackHeight = 6;
+      const trackY = y + height / 2 - trackHeight / 2;
+
+      ctx.save();
+
+      // background box
+      ctx.fillStyle = "rgba(15,23,42,0.9)";
+      ctx.strokeStyle = "rgba(55,65,81,0.9)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // track
+      const trackX = x + 10;
+      const trackW = width - 20;
+
+      ctx.fillStyle = "rgba(31,41,55,1)";
+      ctx.fillRect(trackX, trackY, trackW, trackHeight);
+
+      // filled part
+      ctx.fillStyle = "rgba(129,140,248,1)";
+      ctx.fillRect(trackX, trackY, trackW * clampedT, trackHeight);
+
+      // thumb
+      const thumbX = trackX + trackW * clampedT;
+      const thumbY = y + height / 2;
+
+      ctx.beginPath();
+      ctx.arc(thumbX, thumbY, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(248,250,252,1)";
+      ctx.fill();
+
+      // label
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "10px system-ui";
+      ctx.fillText(
+        `${ctrl.label}: ${value.toFixed(2)}`,
+        x + 10,
+        y + 11
+      );
+
+      ctx.restore();
+    }
+
+    function drawUIControls() {
+      for (const ctrl of UI.controls) {
+        if (ctrl.type === "slider") {
+          drawSlider(ctrl);
+        }
+      }
+    }
+
+    // hook into drawDebug (which already runs near end of frame)
+    const OLD_DRAW_DEBUG_2 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_2();
+      drawUIControls();
+    };
+
+    function hitTestSlider(ctrl, mx, my) {
+      return (
+        mx >= ctrl.x &&
+        mx <= ctrl.x + ctrl.width &&
+        my >= ctrl.y &&
+        my <= ctrl.y + ctrl.height
+      );
+    }
+
+    function sliderSetValueFromMouse(ctrl, mx) {
+      const trackX = ctrl.x + 10;
+      const trackW = ctrl.width - 20;
+      let t = (mx - trackX) / trackW;
+      t = Math.min(Math.max(t, 0), 1);
+      const v = ctrl.min + t * (ctrl.max - ctrl.min);
+      ctrl.setValue(v);
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // check if clicked on a UI control first
+      for (const ctrl of UI.controls) {
+        if (ctrl.type === "slider" && hitTestSlider(ctrl, mx, my)) {
+          UI.draggingControl = ctrl;
+          sliderSetValueFromMouse(ctrl, mx);
+          e.stopPropagation();
+          return;
+        }
+      }
+    }, true);
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!UI.draggingControl) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      sliderSetValueFromMouse(UI.draggingControl, mx);
+      e.stopPropagation();
+    }, true);
+
+    canvas.addEventListener("mouseup", () => {
+      if (UI.draggingControl) {
+        UI.draggingControl = null;
+      }
+    }, true);
+
+    initOnCanvasUI();
+
+    /*************************************************
+     * 47. SPLIT-VIEW "GHOST" MIRROR (RIGHT HALF)
+     *************************************************/
+    const MIRROR = {
+      enabled: false,
+      offsetFrames: 12,
+      history: [] // array of snapshots of positions only
+    };
+
+    function captureMirrorState() {
+      const snapshot = world.balls.map(b => ({
+        x: b.x,
+        y: b.y,
+        radius: b.radius
+      }));
+      MIRROR.history.push(snapshot);
+      const maxLen = MIRROR.offsetFrames + 2;
+      if (MIRROR.history.length > maxLen) {
+        MIRROR.history.shift();
+      }
+    }
+
+    function drawMirror() {
+      if (!MIRROR.enabled) return;
+      if (MIRROR.history.length <= MIRROR.offsetFrames) return;
+
+      const idx = MIRROR.history.length - 1 - MIRROR.offsetFrames;
+      const snapshot = MIRROR.history[idx];
+      if (!snapshot) return;
+
+      const halfWidth = canvas.width * 0.5;
+      const originX = halfWidth;
+      const width = halfWidth;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(originX, 0, width, canvas.height);
+      ctx.clip();
+
+      // dim background on mirror side
+      ctx.fillStyle = "rgba(15,23,42,0.85)";
+      ctx.fillRect(originX, 0, width, canvas.height);
+
+      // draw ghost balls
+      for (const b of snapshot) {
+        const x = originX + (b.x / halfWidth) * width * 0.9;
+        const y = b.y;
+
+        ctx.beginPath();
+        ctx.arc(x, y, b.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(156,163,175,0.8)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "10px system-ui";
+      ctx.fillText("Mirror (past state)", originX + 10, 16);
+
+      ctx.restore();
+    }
+
+    // integrate mirror capture + draw into pipelines
+    const OLD_STEP_WITH_ALL = stepPhysics;
+    stepPhysics = function (dt) {
+      OLD_STEP_WITH_ALL(dt);
+      captureMirrorState();
+    };
+
+    const OLD_DRAW_DEBUG_3 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_3();
+      drawMirror();
+    };
+
+    function handleMirrorCommands(lower) {
+      if (lower.includes("mirror on") || lower.includes("split view on")) {
+        MIRROR.enabled = true;
+        addMessage("bot", "Mirror view enabled on the right half of the canvas.");
+        return true;
+      }
+
+      if (lower.includes("mirror off") || lower.includes("split view off")) {
+        MIRROR.enabled = false;
+        addMessage("bot", "Mirror view disabled.");
+        return true;
+      }
+
+      if (lower.includes("mirror delay")) {
+        const n = parseNumberInText(lower, MIRROR.offsetFrames);
+        MIRROR.offsetFrames = Math.max(1, Math.min(n, 120));
+        addMessage("bot", `Mirror delay set to ${MIRROR.offsetFrames} frame(s).`);
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_18 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleMirrorCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_18(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 48. SUMMARY OF POWER FEATURES (for dev reading)
+     *************************************************/
+    function logFeatureSummary() {
+      logEvent("summary", "Features: materials, fields, zones, trails, energy graph, snapshots, macros, recorder, mirror view, on-canvas UI, sound.");
+    }
+
+    logFeatureSummary();
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // If you want, next we can:
+    //  - Add multi-language command aliases
+    //  - Add per-ball labeling / IDs
+    //  - Add simple AI "goals" (e.g., keep energy within a range automatically)
+    /*************************************************
+ * 49. MULTI-LANGUAGE COMMAND ALIASES (BASIC)
+ *************************************************/
+    const LANG = {
+      current: "en",
+      aliases: {
+        en: {},
+        hi: {
+          "spawn": ["जोड़ो", "उत्पन्न"],
+          "gravity": ["गुरुत्व"],
+          "clear": ["साफ"],
+          "freeze": ["रोक"],
+          "unfreeze": ["चलाओ"],
+          "sound on": ["ध्वनि चालू"],
+          "sound off": ["ध्वनि बंद"]
+        }
+      }
+    };
+
+    function normalizeCommand(text) {
+      if (LANG.current !== "hi") return text;
+      const lower = text.toLowerCase();
+      const map = LANG.aliases.hi;
+      for (const enKey in map) {
+        for (const alias of map[enKey]) {
+          if (lower.includes(alias)) {
+            return lower.replace(alias, enKey);
+          }
+        }
+      }
+      return lower;
+    }
+
+    const LOOP_HANDLE_USER = handleUserCommand;
+    handleUserCommand = function (text) {
+      const normalized = normalizeCommand(text);
+      LOOP_HANDLE_USER(normalized);
+    };
+
+    /*************************************************
+     * 50. PER-BALL LABELING / IDS
+     *************************************************/
+    let BALL_ID_COUNTER = 1;
+
+    const OLD_CREATE_BALL_2 = createBall;
+    createBall = function (x, y, powerScale = 1) {
+      const before = world.balls.length;
+      OLD_CREATE_BALL_2(x, y, powerScale);
+      const b = world.balls[before];
+      b.id = BALL_ID_COUNTER++;
+      b.label = `B${b.id}`;
+    };
+
+    function drawBallLabels() {
+      ctx.save();
+      ctx.font = "9px system-ui";
+      ctx.fillStyle = "#e5e7eb";
+      for (const b of world.balls) {
+        ctx.fillText(b.label || "", b.x - 6, b.y - b.radius - 4);
+      }
+      ctx.restore();
+    }
+
+    const OLD_DRAW_BALLS_4 = drawBalls;
+    drawBalls = function () {
+      OLD_DRAW_BALLS_4();
+      drawBallLabels();
+    };
+
+    /*************************************************
+     * 51. AUTO AI GOAL SYSTEM
+     *************************************************/
+    const AI_GOALS = {
+      enabled: false,
+      targetEnergyMin: 60000,
+      targetEnergyMax: 120000
+    };
+
+    function autoBalanceEnergy() {
+      if (!AI_GOALS.enabled) return;
+
+      const current = ENERGY.totalKinetic;
+
+      if (current < AI_GOALS.targetEnergyMin) {
+        world.timeScale = Math.min(world.timeScale + 0.05, 1.5);
+        world.gravity = Math.min(world.gravity + 0.03, 1.0);
+        addMessage("bot", "AI Goal: Increasing energy (too calm).");
+      }
+
+      if (current > AI_GOALS.targetEnergyMax) {
+        world.timeScale = Math.max(world.timeScale - 0.05, 0.4);
+        world.gravity = Math.max(world.gravity - 0.03, 0.2);
+        addMessage("bot", "AI Goal: Decreasing energy (too chaotic).");
+      }
+    }
+
+    const OLD_MAIN_LOOP_5 = mainLoop;
+    mainLoop = function (timestamp) {
+      autoBalanceEnergy();
+      OLD_MAIN_LOOP_5(timestamp);
+    };
+
+    function handleGoalCommands(lower) {
+      if (lower.includes("ai goals on")) {
+        AI_GOALS.enabled = true;
+        addMessage("bot", "AI energy balancing goals enabled.");
+        return true;
+      }
+
+      if (lower.includes("ai goals off")) {
+        AI_GOALS.enabled = false;
+        addMessage("bot", "AI energy balancing goals disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_19 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleGoalCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_19(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 52. PER-BALL AUTO FOLLOW CAMERA (FOCUS MODE)
+     *************************************************/
+    let CAMERA = {
+      enabled: false,
+      targetId: null,
+      offsetX: 0,
+      offsetY: 0
+    };
+
+    function enableCameraFollow(ballId) {
+      CAMERA.enabled = true;
+      CAMERA.targetId = ballId;
+      addMessage("bot", `Camera now following ball ID ${ballId}.`);
+    }
+
+    function disableCameraFollow() {
+      CAMERA.enabled = false;
+      CAMERA.targetId = null;
+      CAMERA.offsetX = 0;
+      CAMERA.offsetY = 0;
+      addMessage("bot", "Camera follow disabled.");
+    }
+
+    function applyCameraTransform() {
+      if (!CAMERA.enabled) return;
+
+      const b = world.balls.find(bb => bb.id === CAMERA.targetId);
+      if (!b) return;
+
+      CAMERA.offsetX = canvas.width / 2 - b.x;
+      CAMERA.offsetY = canvas.height / 2 - b.y;
+
+      ctx.translate(CAMERA.offsetX, CAMERA.offsetY);
+    }
+
+    const OLD_DRAW_BACKGROUND_2 = drawBackground;
+    drawBackground = function () {
+      ctx.save();
+      applyCameraTransform();
+      OLD_DRAW_BACKGROUND_2();
+      ctx.restore();
+    };
+
+    function handleCameraCommands(lower) {
+      if (lower.startsWith("follow ball")) {
+        const id = parseNumberInText(lower, null);
+        if (id == null) {
+          addMessage("bot", "Provide a ball ID to follow.");
+          return true;
+        }
+        enableCameraFollow(id);
+        return true;
+      }
+
+      if (lower.includes("stop follow")) {
+        disableCameraFollow();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_20 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleCameraCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_20(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 53. AUTO CLEANUP (WHEN TOO MANY BALLS)
+     *************************************************/
+    const CLEANUP = {
+      enabled: true,
+      maxBalls: 1500
+    };
+
+    function autoCleanup() {
+      if (!CLEANUP.enabled) return;
+
+      if (world.balls.length > CLEANUP.maxBalls) {
+        world.balls.splice(0, world.balls.length - CLEANUP.maxBalls);
+        addMessage("bot", "Auto-cleanup triggered: excess balls removed.");
+        logEvent("cleanup", "Auto-cleanup removed excess balls");
+      }
+    }
+
+    const OLD_MAIN_LOOP_6 = mainLoop;
+    mainLoop = function (timestamp) {
+      autoCleanup();
+      OLD_MAIN_LOOP_6(timestamp);
+    };
+
+    /*************************************************
+     * 54. FULL FEATURE STATUS COMMAND
+     *************************************************/
+    function systemFeatureStatus() {
+      addMessage("bot", "=== FEATURE STATUS ===");
+      addMessage("bot", `Trails: ${TRAILS.enabled}`);
+      addMessage("bot", `Zones: ${ZONES.enabled}`);
+      addMessage("bot", `Sound: ${SOUND.enabled}`);
+      addMessage("bot", `Recorder: ${RECORDER.recording}`);
+      addMessage("bot", `Mirror: ${MIRROR.enabled}`);
+      addMessage("bot", `AI Goals: ${AI_GOALS.enabled}`);
+      addMessage("bot", `Camera Follow: ${CAMERA.enabled}`);
+      addMessage("bot", `Safe Mode: ${SAFE_MODE.enabled}`);
+    }
+
+    function handleStatusCommands(lower) {
+      if (lower.includes("feature status") || lower.includes("system features")) {
+        systemFeatureStatus();
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_21 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleStatusCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_21(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 55. NEXT PHASE PLACEHOLDER (LOCKED)
+     *************************************************/
+    const FUTURE_SYSTEMS = {
+      neuralAI: false,
+      multiplayer: false,
+      saveToFile: false,
+      cloudSync: false
+    };
+
+    function handleFutureCommands(lower) {
+      if (lower.includes("enable neural ai")) {
+        FUTURE_SYSTEMS.neuralAI = true;
+        addMessage("bot", "Neural AI placeholder enabled (no backend yet).");
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_22 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleFutureCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_22(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 56. FINAL EXPANSION CHECKPOINT
+     *************************************************/
+    logEvent("checkpoint", "Reached system checkpoint 56");
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // Next available upgrades:
+    // - Export to downloadable file
+    // - Replay physics frames visually
+    // - Advanced collision solver
+    // - Real vector field visualization
+    /*************************************************
+ * 57. EXPORT WORLD AS DOWNLOADABLE FILE
+ *************************************************/
+    function downloadTextFile(filename, text) {
+      try {
+        const blob = new Blob([text], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        addMessage("bot", "Browser blocked file download or had an error.");
+      }
+    }
+
+    function handleFileExportCommands(lower) {
+      if (lower.includes("download world") ||
+        lower.includes("save world file") ||
+        lower.includes("export world file")) {
+        const json = exportWorldToJSON();
+        if (!json) {
+          addMessage("bot", "Could not serialize world to JSON for download.");
+          return true;
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = `physics-sandbox-${timestamp}.json`;
+        downloadTextFile(filename, json);
+        addMessage("bot", `Download triggered for "${filename}".`);
+        return true;
+      }
+
+      if (lower.includes("download log") ||
+        lower.includes("export log")) {
+        if (LOGGER.events.length === 0) {
+          addMessage("bot", "No log events to export.");
+          return true;
+        }
+        const lines = LOGGER.events.map(ev => {
+          const t = (ev.time / 1000).toFixed(2).padStart(8, " ");
+          return `${t}s  [${ev.kind}] ${ev.details}`;
+        });
+        const text = lines.join("\n");
+        const filename = "physics-sandbox-log.txt";
+        downloadTextFile(filename, text);
+        addMessage("bot", `Download triggered for "${filename}".`);
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_23 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleFileExportCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_23(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 58. FRAME HISTORY + VISUAL REPLAY
+     *************************************************/
+    const REPLAY = {
+      enabled: false,
+      maxFrames: 240,
+      frames: [],  // each frame: [{x,y,radius}, ...]
+      playing: false,
+      playIndex: 0,
+      playSpeed: 1.0
+    };
+
+    function captureReplayFrame() {
+      if (!REPLAY.enabled) return;
+      const frame = world.balls.map(b => ({
+        x: b.x,
+        y: b.y,
+        radius: b.radius
+      }));
+      REPLAY.frames.push(frame);
+      if (REPLAY.frames.length > REPLAY.maxFrames) {
+        REPLAY.frames.shift();
+      }
+    }
+
+    function drawReplayOverlay() {
+      if (!REPLAY.playing || REPLAY.frames.length === 0) return;
+
+      const frame = REPLAY.frames[REPLAY.playIndex];
+      if (!frame) return;
+
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = "rgba(15,23,42,0.85)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.globalAlpha = 1;
+      for (const b of frame) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(96,165,250,0.9)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "11px system-ui";
+      ctx.fillText(
+        `Replay frame ${REPLAY.playIndex + 1}/${REPLAY.frames.length}`,
+        16,
+        22
+      );
+      ctx.restore();
+    }
+
+    function tickReplay() {
+      if (!REPLAY.playing || REPLAY.frames.length === 0) return;
+
+      const step = Math.max(1, Math.round(REPLAY.playSpeed));
+      REPLAY.playIndex += step;
+      if (REPLAY.playIndex >= REPLAY.frames.length) {
+        REPLAY.playIndex = REPLAY.frames.length - 1;
+        REPLAY.playing = false;
+        addMessage("bot", "Replay finished.");
+      }
+    }
+
+    const OLD_STEP_PHYSICS_REPLAY = stepPhysics;
+    stepPhysics = function (dt) {
+      OLD_STEP_PHYSICS_REPLAY(dt);
+      captureReplayFrame();
+    };
+
+    const OLD_MAIN_LOOP_7 = mainLoop;
+    mainLoop = function (timestamp) {
+      if (REPLAY.playing) {
+        tickReplay();
+      }
+      OLD_MAIN_LOOP_7(timestamp);
+    };
+
+    const OLD_DRAW_DEBUG_4 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_4();
+      if (REPLAY.playing) {
+        drawReplayOverlay();
+      }
+    };
+
+    function handleReplayCommands(lower) {
+      if (lower.includes("replay on")) {
+        REPLAY.enabled = true;
+        addMessage("bot", "Replay capture enabled (recording last few seconds).");
+        return true;
+      }
+
+      if (lower.includes("replay off")) {
+        REPLAY.enabled = false;
+        REPLAY.frames = [];
+        addMessage("bot", "Replay capture disabled and cleared.");
+        return true;
+      }
+
+      if (lower.includes("play replay")) {
+        if (REPLAY.frames.length === 0) {
+          addMessage("bot", "No replay frames captured yet.");
+          return true;
+        }
+        REPLAY.playing = true;
+        REPLAY.playIndex = 0;
+        addMessage("bot", `Replay started with ${REPLAY.frames.length} frames.`);
+        return true;
+      }
+
+      if (lower.includes("replay speed")) {
+        const s = parseNumberInText(lower, REPLAY.playSpeed);
+        REPLAY.playSpeed = Math.max(0.5, Math.min(s, 8));
+        addMessage("bot", `Replay speed set to ${REPLAY.playSpeed.toFixed(1)}x.`);
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_24 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleReplayCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_24(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 59. VECTOR FIELD VISUALIZATION
+     *************************************************/
+    const FIELD_VIS = {
+      enabled: false,
+      gridStep: 60
+    };
+
+    function computeFieldVectorAt(x, y) {
+      // approximate combination of gravity + fields (magnet, vortex)
+      let fx = 0;
+      let fy = world.gravity * 4; // base downward
+
+      if (fields.magnet || fields.vortex) {
+        const dx = fields.origin.x - x;
+        const dy = fields.origin.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+
+        if (fields.magnet) {
+          const f = 6 / dist;
+          fx += (dx / dist) * f;
+          fy += (dy / dist) * f;
+        }
+
+        if (fields.vortex) {
+          const s = 4 / dist;
+          fx += -dy / dist * s;
+          fy += dx / dist * s;
+        }
+      }
+
+      return { fx, fy };
+    }
+
+    function drawFieldVisualization() {
+      if (!FIELD_VIS.enabled) return;
+
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(148,163,184,0.8)";
+
+      const step = FIELD_VIS.gridStep;
+      for (let x = step / 2; x < canvas.width; x += step) {
+        for (let y = step / 2; y < canvas.height; y += step) {
+          const v = computeFieldVectorAt(x, y);
+          const len = Math.sqrt(v.fx * v.fx + v.fy * v.fy);
+          if (!isFinite(len) || len < 0.01) continue;
+
+          const scale = 6 / len;
+          const dx = v.fx * scale;
+          const dy = v.fy * scale;
+
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + dx, y + dy);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    const OLD_DRAW_BACKGROUND_3 = drawBackground;
+    drawBackground = function () {
+      OLD_DRAW_BACKGROUND_3();
+      drawFieldVisualization();
+    };
+
+    function handleFieldVisCommands(lower) {
+      if (lower.includes("show field") || lower.includes("field viz on")) {
+        FIELD_VIS.enabled = true;
+        addMessage("bot", "Vector field visualization enabled.");
+        return true;
+      }
+
+      if (lower.includes("hide field") || lower.includes("field viz off")) {
+        FIELD_VIS.enabled = false;
+        addMessage("bot", "Vector field visualization disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_25 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleFieldVisCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_25(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 60. LITTLE "ABOUT" / CREDITS COMMAND
+     *************************************************/
+    function showAbout() {
+      addMessage("bot", "=== ABOUT THIS SANDBOX ===");
+      addMessage("bot", "Single-file Physics + AI Playground.");
+      addMessage("bot", "Features: particles, materials, zones, trails, fields, energy graph, snapshots, macros, recorder, mirror, sliders, replay, sound, and more.");
+      addMessage("bot", "Designed to grow into a 5000+ line experimental lab in a single <script>.");
+    }
+
+    function handleAboutCommands(lower) {
+      if (lower === "about" || lower.includes("about sandbox")) {
+        showAbout();
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_26 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleAboutCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_26(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 61. SAFE GUARD: FALLBACK FOR ANY UNCAUGHT ERROR
+     *************************************************/
+    window.addEventListener("error", (e) => {
+      try {
+        addMessage("system", "Runtime error: " + e.message);
+      } catch {
+        // silent if messages UI not ready
+      }
+    });
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    // We are now very close to a "mini engine".
+    // Further growth can keep stacking new subsystems using the same patch pattern.
+    /*************************************************
+ * 62. ADVANCED COLLISION VISUAL DEBUGGER
+ *************************************************/
+    const COLLISION_DEBUG = {
+      enabled: false,
+      hits: [] // {x, y, time}
+    };
+
+    function logCollision(x, y) {
+      if (!COLLISION_DEBUG.enabled) return;
+      COLLISION_DEBUG.hits.push({
+        x,
+        y,
+        time: performance.now()
+      });
+      if (COLLISION_DEBUG.hits.length > 200) {
+        COLLISION_DEBUG.hits.shift();
+      }
+    }
+
+    const OLD_STEP_PHYSICS_COLLISION = stepPhysics;
+    stepPhysics = function (dt) {
+      for (const b of world.balls) {
+        if (b.y + b.radius >= world.height - 1 && Math.abs(b.vy) > 1) {
+          logCollision(b.x, b.y);
+        }
+      }
+      OLD_STEP_PHYSICS_COLLISION(dt);
+    };
+
+    function drawCollisionDebug() {
+      if (!COLLISION_DEBUG.enabled) return;
+
+      const now = performance.now();
+
+      ctx.save();
+      for (const hit of COLLISION_DEBUG.hits) {
+        const age = (now - hit.time) / 1000;
+        const alpha = Math.max(0, 1 - age);
+
+        ctx.beginPath();
+        ctx.arc(hit.x, hit.y, 6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(248,113,113,${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    const OLD_DRAW_DEBUG_5 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_5();
+      drawCollisionDebug();
+    };
+
+    function handleCollisionDebugCommands(lower) {
+      if (lower.includes("collision debug on")) {
+        COLLISION_DEBUG.enabled = true;
+        addMessage("bot", "Collision debug enabled.");
+        return true;
+      }
+
+      if (lower.includes("collision debug off")) {
+        COLLISION_DEBUG.enabled = false;
+        COLLISION_DEBUG.hits = [];
+        addMessage("bot", "Collision debug disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_27 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleCollisionDebugCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_27(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 63. PER-BALL IMMUNITY / FREEZE FLAGS
+     *************************************************/
+    function toggleBallFreezeById(id) {
+      const b = world.balls.find(ball => ball.id === id);
+      if (!b) {
+        addMessage("bot", `No ball found with ID ${id}.`);
+        return;
+      }
+      b.frozen = !b.frozen;
+      addMessage(
+        "bot",
+        `Ball ${id} is now ${b.frozen ? "frozen" : "unfrozen"}.`
+      );
+    }
+
+    const OLD_STEP_PHYSICS_IMMUNITY = stepPhysics;
+    stepPhysics = function (dt) {
+      for (const b of world.balls) {
+        if (b.frozen) {
+          b.vx = 0;
+          b.vy = 0;
+        }
+      }
+      OLD_STEP_PHYSICS_IMMUNITY(dt);
+    };
+
+    function handleBallFreezeCommands(lower) {
+      if (lower.startsWith("freeze ball")) {
+        const id = parseNumberInText(lower, null);
+        if (id == null) {
+          addMessage("bot", "Please provide a valid ball ID.");
+          return true;
+        }
+        toggleBallFreezeById(id);
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_28 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleBallFreezeCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_28(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 64. PER-BALL ATTRACTORS / REPULSORS
+     *************************************************/
+    const BALL_FIELDS = {
+      enabled: false,
+      strength: 0.6
+    };
+
+    function applyBallFields() {
+      if (!BALL_FIELDS.enabled) return;
+
+      for (let i = 0; i < world.balls.length; i++) {
+        const a = world.balls[i];
+        if (!a || a.frozen) continue;
+
+        for (let j = 0; j < world.balls.length; j++) {
+          if (i === j) continue;
+          const b = world.balls[j];
+          if (!b || b.frozen) continue;
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
+
+          const force = BALL_FIELDS.strength / dist;
+          a.vx += dx / dist * force;
+          a.vy += dy / dist * force;
+        }
+      }
+    }
+
+    const OLD_STEP_WITH_ZONES_FIELDS = stepPhysics;
+    stepPhysics = function (dt) {
+      OLD_STEP_WITH_ZONES_FIELDS(dt);
+      applyBallFields();
+    };
+
+    function handleBallFieldCommands(lower) {
+      if (lower.includes("ball fields on")) {
+        BALL_FIELDS.enabled = true;
+        addMessage("bot", "Inter-ball attractor field enabled.");
+        return true;
+      }
+
+      if (lower.includes("ball fields off")) {
+        BALL_FIELDS.enabled = false;
+        addMessage("bot", "Inter-ball attractor field disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_29 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleBallFieldCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_29(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 65. COMMAND STATISTICS TRACKER
+     *************************************************/
+    const COMMAND_STATS = {
+      total: 0,
+      counts: {}
+    };
+
+    const PRE_STATS_HANDLER = handleUserCommand;
+    handleUserCommand = function (text) {
+      const cmd = String(text || "").toLowerCase().split(" ")[0];
+      COMMAND_STATS.total++;
+      COMMAND_STATS.counts[cmd] = (COMMAND_STATS.counts[cmd] || 0) + 1;
+      PRE_STATS_HANDLER(text);
+    };
+
+    function showCommandStats() {
+      addMessage("bot", `Total commands used: ${COMMAND_STATS.total}`);
+      const entries = Object.entries(COMMAND_STATS.counts);
+      entries.sort((a, b) => b[1] - a[1]);
+      entries.slice(0, 8).forEach(([k, v]) => {
+        addMessage("bot", `${k}: ${v}`);
+      });
+    }
+
+    function handleCommandStatsCommands(lower) {
+      if (lower.includes("command stats")) {
+        showCommandStats();
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_30 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleCommandStatsCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_30(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 66. COLOR THEMES (LIGHT / DARK / NEON)
+     *************************************************/
+    const THEMES = {
+      current: "dark"
+    };
+
+    function applyTheme(name) {
+      THEMES.current = name;
+
+      if (name === "light") {
+        document.body.style.background = "#f1f5f9";
+        addMessage("bot", "Light theme activated.");
+      } else if (name === "neon") {
+        document.body.style.background = "#020617";
+        addMessage("bot", "Neon theme activated.");
+      } else {
+        document.body.style.background = "#050816";
+        addMessage("bot", "Dark theme activated.");
+      }
+    }
+
+    function handleThemeCommands(lower) {
+      if (lower.includes("theme light")) {
+        applyTheme("light");
+        return true;
+      }
+      if (lower.includes("theme dark")) {
+        applyTheme("dark");
+        return true;
+      }
+      if (lower.includes("theme neon")) {
+        applyTheme("neon");
+        return true;
+      }
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_31 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleThemeCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_31(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 67. AUTO-PAUSE WHEN TAB IS INACTIVE
+     *************************************************/
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        frozen = true;
+        logEvent("pause", "Tab hidden auto-freeze");
+      } else {
+        frozen = false;
+        logEvent("resume", "Tab visible auto-unfreeze");
+      }
+    });
+
+    /*************************************************
+     * 68. FINAL EXPANSION MARKER
+     *************************************************/
+    logEvent("checkpoint", "Reached system checkpoint 68");
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    /*************************************************
+ * 69. MINIMAP OVERLAY (TOP-RIGHT CORNER)
+ *************************************************/
+    const MINIMAP = {
+      enabled: true,
+      width: 120,
+      height: 80,
+      margin: 12
+    };
+
+    function drawMinimap() {
+      if (!MINIMAP.enabled) return;
+
+      const w = MINIMAP.width;
+      const h = MINIMAP.height;
+      const m = MINIMAP.margin;
+
+      const x0 = canvas.width - w - m;
+      const y0 = canvas.height - h - m;
+
+      ctx.save();
+
+      // panel background
+      ctx.fillStyle = "rgba(15,23,42,0.85)";
+      ctx.fillRect(x0, y0, w, h);
+
+      // border
+      ctx.strokeStyle = "rgba(55,65,81,0.95)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0, y0, w, h);
+
+      // world outline
+      ctx.strokeStyle = "rgba(75,85,99,0.9)";
+      ctx.strokeRect(x0 + 4, y0 + 4, w - 8, h - 12);
+
+      const innerW = w - 8;
+      const innerH = h - 16;
+
+      // balls as tiny dots
+      ctx.fillStyle = "rgba(129,140,248,0.9)";
+      for (const b of world.balls) {
+        const nx = b.x / Math.max(world.width, 1);
+        const ny = b.y / Math.max(world.height, 1);
+
+        const mx = x0 + 4 + nx * innerW;
+        const my = y0 + 4 + ny * innerH;
+
+        ctx.fillRect(mx - 1, my - 1, 2, 2);
+      }
+
+      // label
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "9px system-ui";
+      ctx.fillText("Minimap", x0 + 6, y0 + h - 4);
+
+      ctx.restore();
+    }
+
+    const OLD_DRAW_DEBUG_6 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_6();
+      drawMinimap();
+    };
+
+    function handleMinimapCommands(lower) {
+      if (lower.includes("minimap off")) {
+        MINIMAP.enabled = false;
+        addMessage("bot", "Minimap disabled.");
+        return true;
+      }
+
+      if (lower.includes("minimap on")) {
+        MINIMAP.enabled = true;
+        addMessage("bot", "Minimap enabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_32 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleMinimapCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_32(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 70. HEIGHT HISTOGRAM OVERLAY
+     *************************************************/
+    const HEIGHT_GRAPH = {
+      enabled: false,
+      buckets: 10
+    };
+
+    function drawHeightHistogram() {
+      if (!HEIGHT_GRAPH.enabled) return;
+      if (world.balls.length === 0) return;
+
+      const buckets = new Array(HEIGHT_GRAPH.buckets).fill(0);
+      for (const b of world.balls) {
+        const ny = b.y / Math.max(world.height, 1); // 0 top, 1 bottom
+        let idx = Math.floor(ny * HEIGHT_GRAPH.buckets);
+        if (idx < 0) idx = 0;
+        if (idx >= HEIGHT_GRAPH.buckets) idx = HEIGHT_GRAPH.buckets - 1;
+        buckets[idx]++;
+      }
+
+      const maxCount = Math.max(...buckets, 1);
+
+      const w = 140;
+      const h = 60;
+      const x0 = 16;
+      const y0 = 16;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(15,23,42,0.85)";
+      ctx.fillRect(x0, y0, w, h);
+      ctx.strokeStyle = "rgba(55,65,81,0.9)";
+      ctx.strokeRect(x0, y0, w, h);
+
+      const barWidth = (w - 10) / HEIGHT_GRAPH.buckets;
+      for (let i = 0; i < HEIGHT_GRAPH.buckets; i++) {
+        const val = buckets[i];
+        const ratio = val / maxCount;
+        const barHeight = ratio * (h - 18);
+
+        const bx = x0 + 5 + i * barWidth;
+        const by = y0 + h - 6 - barHeight;
+
+        ctx.fillStyle = "rgba(52,211,153,0.9)";
+        ctx.fillRect(bx, by, barWidth - 2, barHeight);
+      }
+
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "9px system-ui";
+      ctx.fillText("Height dist.", x0 + 6, y0 + 10);
+
+      ctx.restore();
+    }
+
+    const OLD_DRAW_DEBUG_7 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_7();
+      drawHeightHistogram();
+    };
+
+    function handleHeightGraphCommands(lower) {
+      if (lower.includes("height graph on") ||
+        lower.includes("show height graph")) {
+        HEIGHT_GRAPH.enabled = true;
+        addMessage("bot", "Height histogram enabled.");
+        return true;
+      }
+
+      if (lower.includes("height graph off") ||
+        lower.includes("hide height graph")) {
+        HEIGHT_GRAPH.enabled = false;
+        addMessage("bot", "Height histogram disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_33 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleHeightGraphCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_33(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 71. FPS LIMITER / FRAME SKIPPER
+     *************************************************/
+    const FPS_LIMITER = {
+      enabled: false,
+      targetFPS: 30,
+      lastFrameTime: performance.now()
+    };
+
+    const ORIGINAL_MAIN_LOOP = mainLoop;
+    mainLoop = function (timestamp) {
+      if (FPS_LIMITER.enabled) {
+        const minDelta = 1000 / FPS_LIMITER.targetFPS;
+        if (timestamp - FPS_LIMITER.lastFrameTime < minDelta) {
+          requestAnimationFrame(mainLoop);
+          return;
+        }
+        FPS_LIMITER.lastFrameTime = timestamp;
+      }
+      ORIGINAL_MAIN_LOOP(timestamp);
+    };
+
+    function handleFpsCommands(lower) {
+      if (lower.includes("fps limit off")) {
+        FPS_LIMITER.enabled = false;
+        addMessage("bot", "FPS limiter disabled (render as fast as possible).");
+        return true;
+      }
+
+      if (lower.includes("fps limit on")) {
+        const n = parseNumberInText(lower, FPS_LIMITER.targetFPS);
+        FPS_LIMITER.enabled = true;
+        FPS_LIMITER.targetFPS = Math.max(10, Math.min(n, 120));
+        addMessage("bot", `FPS limiter enabled at ~${FPS_LIMITER.targetFPS} FPS.`);
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_34 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleFpsCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_34(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 72. SIMPLE NOTE SYSTEM (TEXT-ONLY)
+     *************************************************/
+    const NOTES = {
+      list: []
+    };
+
+    function addNote(text) {
+      if (!text) return;
+      const id = NOTES.list.length + 1;
+      NOTES.list.push({ id, text });
+      addMessage("bot", `Note[${id}]: ${text}`);
+    }
+
+    function listNotes() {
+      if (NOTES.list.length === 0) {
+        addMessage("bot", "No notes stored.");
+        return;
+      }
+      addMessage("bot", "=== NOTES ===");
+      NOTES.list.forEach(n => {
+        addMessage("bot", `[#${n.id}] ${n.text}`);
+      });
+    }
+
+    function clearNotes() {
+      NOTES.list = [];
+      addMessage("bot", "All notes cleared.");
+    }
+
+    function handleNoteCommands(lower, originalText) {
+      if (lower.startsWith("note ")) {
+        const txt = originalText.slice(originalText.indexOf(" ")).trim();
+        addNote(txt);
+        return true;
+      }
+
+      if (lower === "notes list" || lower.includes("list notes")) {
+        listNotes();
+        return true;
+      }
+
+      if (lower.includes("clear notes")) {
+        clearNotes();
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_35 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      const original = typeof originalMaybe === "string" ? originalMaybe : lower;
+      if (handleNoteCommands(lower, original)) return true;
+      return OLD_HANDLE_ADVANCED_35(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 73. SMALL EASTER-EGG COMMANDS
+     *************************************************/
+    function handleEasterEggCommands(lower) {
+      if (lower.includes("thanOS") || lower.includes("thanos")) {
+        addMessage("bot", "Perfectly balanced, as all things should be.");
+        world.timeScale = 0.5;
+        world.gravity = 0.4;
+        randomizeMaterials();
+        return true;
+      }
+
+      if (lower.includes("doom mode")) {
+        setMode("chaos");
+        world.timeScale = 1.8;
+        world.gravity = 0.9;
+        for (let i = 0; i < 200; i++) {
+          createBall(randRange(40, world.width - 40), randRange(0, world.height / 3), 1.5);
+        }
+        addMessage("bot", "DOOM MODE unleashed. Brace yourself.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_36 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleEasterEggCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_36(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 74. SUPER FINAL MARKER (YOU CAN STILL EXTEND)
+     *************************************************/
+    logEvent("checkpoint", "Reached system checkpoint 74 (nearing 5000 lines target in spirit)");
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    /*************************************************
+ * 75. AUTO SAVE TO LOCAL STORAGE
+ *************************************************/
+    const AUTO_SAVE = {
+      enabled: true,
+      intervalMs: 10000,
+      lastSave: 0,
+      key: "physics_sandbox_autosave"
+    };
+
+    function autoSaveWorld(timestamp) {
+      if (!AUTO_SAVE.enabled) return;
+      if (timestamp - AUTO_SAVE.lastSave < AUTO_SAVE.intervalMs) return;
+
+      const json = exportWorldToJSON();
+      try {
+        localStorage.setItem(AUTO_SAVE.key, json);
+        AUTO_SAVE.lastSave = timestamp;
+        logEvent("autosave", "World auto-saved to localStorage");
+      } catch (e) {
+        addMessage("bot", "Auto-save failed (storage full or blocked).");
+      }
+    }
+
+    function loadAutoSavedWorld() {
+      try {
+        const json = localStorage.getItem(AUTO_SAVE.key);
+        if (!json) return false;
+        importWorldFromJSON(json);
+        addMessage("bot", "Auto-saved world restored.");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    const OLD_MAIN_LOOP_8 = mainLoop;
+    mainLoop = function (timestamp) {
+      autoSaveWorld(timestamp);
+      OLD_MAIN_LOOP_8(timestamp);
+    };
+
+    function handleAutoSaveCommands(lower) {
+      if (lower.includes("autosave off")) {
+        AUTO_SAVE.enabled = false;
+        addMessage("bot", "Auto-save disabled.");
+        return true;
+      }
+
+      if (lower.includes("autosave on")) {
+        AUTO_SAVE.enabled = true;
+        addMessage("bot", "Auto-save enabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_37 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleAutoSaveCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_37(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 76. PER-BALL TRAJECTORY PREDICTION (GHOST ARC)
+     *************************************************/
+    const TRAJECTORY = {
+      enabled: false,
+      steps: 40,
+      stepDt: 0.2
+    };
+
+    function drawTrajectoryForBall(ball) {
+      if (!TRAJECTORY.enabled || !ball) return;
+
+      let px = ball.x;
+      let py = ball.y;
+      let vx = ball.vx || 0;
+      let vy = ball.vy || 0;
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(96,165,250,0.7)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+
+      for (let i = 0; i < TRAJECTORY.steps; i++) {
+        vx *= 0.999;
+        vy += world.gravity * TRAJECTORY.stepDt;
+        px += vx * TRAJECTORY.stepDt;
+        py += vy * TRAJECTORY.stepDt;
+
+        if (px < 0 || px > world.width) vx *= -0.9;
+        if (py > world.height - ball.radius) {
+          py = world.height - ball.radius;
+          vy *= -0.85;
+        }
+
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const OLD_DRAW_BALLS_5 = drawBalls;
+    drawBalls = function () {
+      OLD_DRAW_BALLS_5();
+      if (selectedBallIndex >= 0 && world.balls[selectedBallIndex]) {
+        drawTrajectoryForBall(world.balls[selectedBallIndex]);
+      }
+    };
+
+    function handleTrajectoryCommands(lower) {
+      if (lower.includes("trajectory on")) {
+        TRAJECTORY.enabled = true;
+        addMessage("bot", "Trajectory prediction enabled for selected ball.");
+        return true;
+      }
+
+      if (lower.includes("trajectory off")) {
+        TRAJECTORY.enabled = false;
+        addMessage("bot", "Trajectory prediction disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_38 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleTrajectoryCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_38(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 77. BALL GROUPING / CLUSTERS
+     *************************************************/
+    const CLUSTERS = {
+      enabled: false,
+      distanceThreshold: 60
+    };
+
+    function detectClusters() {
+      if (!CLUSTERS.enabled) return [];
+
+      const clusters = [];
+      const visited = new Set();
+
+      for (let i = 0; i < world.balls.length; i++) {
+        if (visited.has(i)) continue;
+        const stack = [i];
+        const members = [];
+
+        while (stack.length) {
+          const idx = stack.pop();
+          if (visited.has(idx)) continue;
+          visited.add(idx);
+          const b = world.balls[idx];
+          members.push(idx);
+
+          for (let j = 0; j < world.balls.length; j++) {
+            if (visited.has(j)) continue;
+            const c = world.balls[j];
+            const dx = b.x - c.x;
+            const dy = b.y - c.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < CLUSTERS.distanceThreshold) {
+              stack.push(j);
+            }
+          }
+        }
+
+        if (members.length > 1) clusters.push(members);
+      }
+
+      return clusters;
+    }
+
+    function drawClusters() {
+      if (!CLUSTERS.enabled) return;
+
+      const clusters = detectClusters();
+      ctx.save();
+
+      clusters.forEach(group => {
+        const hue = Math.floor(Math.random() * 360);
+        ctx.strokeStyle = `hsla(${hue}, 80%, 65%, 0.6)`;
+        ctx.lineWidth = 2;
+
+        group.forEach(idx => {
+          const b = world.balls[idx];
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.radius + 6, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      });
+
+      ctx.restore();
+    }
+
+    const OLD_DRAW_DEBUG_8 = drawDebug;
+    drawDebug = function () {
+      OLD_DRAW_DEBUG_8();
+      drawClusters();
+    };
+
+    function handleClusterCommands(lower) {
+      if (lower.includes("clusters on")) {
+        CLUSTERS.enabled = true;
+        addMessage("bot", "Cluster detection enabled.");
+        return true;
+      }
+
+      if (lower.includes("clusters off")) {
+        CLUSTERS.enabled = false;
+        addMessage("bot", "Cluster detection disabled.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_39 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleClusterCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_39(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 78. DYNAMIC WIND FIELD
+     *************************************************/
+    const WIND = {
+      enabled: false,
+      strength: 0.02,
+      direction: 1
+    };
+
+    function applyWind() {
+      if (!WIND.enabled) return;
+      for (const b of world.balls) {
+        b.vx += WIND.direction * WIND.strength;
+      }
+    }
+
+    const OLD_STEP_PHYSICS_WIND = stepPhysics;
+    stepPhysics = function (dt) {
+      applyWind();
+      OLD_STEP_PHYSICS_WIND(dt);
+    };
+
+    function handleWindCommands(lower) {
+      if (lower.includes("wind on")) {
+        WIND.enabled = true;
+        addMessage("bot", "Wind enabled.");
+        return true;
+      }
+
+      if (lower.includes("wind off")) {
+        WIND.enabled = false;
+        addMessage("bot", "Wind disabled.");
+        return true;
+      }
+
+      if (lower.includes("wind reverse")) {
+        WIND.direction *= -1;
+        addMessage("bot", "Wind direction reversed.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_40 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleWindCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_40(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 79. FINAL PROTECTION AGAINST MEMORY BLOAT
+     *************************************************/
+    const MEMORY_GUARD = {
+      enabled: true,
+      maxTrailPoints: 20000,
+      maxReplayFrames: 400
+    };
+
+    function enforceMemoryLimits() {
+      if (!MEMORY_GUARD.enabled) return;
+
+      let trailCount = 0;
+      for (const b of world.balls) {
+        if (b.trail) trailCount += b.trail.length;
+      }
+
+      if (trailCount > MEMORY_GUARD.maxTrailPoints) {
+        for (const b of world.balls) {
+          if (b.trail && b.trail.length > 10) {
+            b.trail.splice(0, Math.floor(b.trail.length / 2));
+          }
+        }
+        logEvent("memory-guard", "Trail data trimmed to prevent memory overflow");
+      }
+
+      if (REPLAY.frames.length > MEMORY_GUARD.maxReplayFrames) {
+        REPLAY.frames.splice(0, REPLAY.frames.length - MEMORY_GUARD.maxReplayFrames);
+        logEvent("memory-guard", "Replay frames trimmed to prevent memory overflow");
+      }
+    }
+
+    const OLD_MAIN_LOOP_9 = mainLoop;
+    mainLoop = function (timestamp) {
+      enforceMemoryLimits();
+      OLD_MAIN_LOOP_9(timestamp);
+    };
+
+    /*************************************************
+     * 80. ULTIMATE CHECKPOINT
+     *************************************************/
+    logEvent("checkpoint", "Reached system checkpoint 80 — true mega single-file engine state");
+
+    // ====== STOPPED HERE — SAY "CONTINUE" ======
+    /*************************************************
+ * 81. SCENE PRESETS (QUICK WORLDS)
+ *************************************************/
+    const SCENES = {
+      calmRain: function () {
+        globalReset();
+        world.gravity = 0.35;
+        world.timeScale = 0.8;
+        setMode("rain");
+        TRAILS.enabled = true;
+        for (let i = 0; i < 40; i++) {
+          createBall(randRange(40, world.width - 40), randRange(0, world.height / 3), 0.6);
+        }
+        addMessage("bot", "Loaded scene: Calm Rain.");
+      },
+      chaosStorm: function () {
+        globalReset();
+        world.gravity = 0.9;
+        world.timeScale = 1.5;
+        setMode("chaos");
+        TRAILS.enabled = true;
+        DEBUG && (debug.enabled = true);
+        for (let i = 0; i < 120; i++) {
+          createBall(randRange(30, world.width - 30), randRange(0, world.height / 2), 1.8);
+        }
+        fields.vortex = true;
+        fields.magnet = false;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+        addMessage("bot", "Loaded scene: Chaos Storm.");
+      },
+      zenOrbit: function () {
+        globalReset();
+        world.gravity = 0.1;
+        world.timeScale = 0.7;
+        setMode("calm");
+        TRAILS.enabled = true;
+        fields.vortex = true;
+        fields.magnet = true;
+        fields.origin.x = world.width / 2;
+        fields.origin.y = world.height / 2;
+
+        for (let i = 0; i < 40; i++) {
+          const angle = (i / 40) * Math.PI * 2;
+          const radius = Math.min(world.width, world.height) * 0.3;
+          const x = world.width / 2 + Math.cos(angle) * radius;
+          const y = world.height / 2 + Math.sin(angle) * radius;
+          const b = {
+            x,
+            y,
+            vx: -Math.sin(angle) * 2,
+            vy: Math.cos(angle) * 2,
+            radius: randRange(8, 14),
+            mass: randRange(4, 8)
+          };
+          assignMaterialToBall(b, MATERIALS.GHOST);
+          world.balls.push(b);
+        }
+
+        addMessage("bot", "Loaded scene: Zen Orbit.");
+      }
+    };
+
+    function handleSceneCommands(lower) {
+      if (lower.includes("scene calm") || lower.includes("load calm rain")) {
+        SCENES.calmRain();
+        return true;
+      }
+
+      if (lower.includes("scene chaos") || lower.includes("load chaos storm")) {
+        SCENES.chaosStorm();
+        return true;
+      }
+
+      if (lower.includes("scene zen") || lower.includes("load zen orbit")) {
+        SCENES.zenOrbit();
+        return true;
+      }
+
+      if (lower.includes("list scenes")) {
+        addMessage("bot", "Available scenes: calmRain, chaosStorm, zenOrbit.");
+        return true;
+      }
+
+      return false;
+    }
+
+    const OLD_HANDLE_ADVANCED_41 = handleAdvancedCommands;
+    handleAdvancedCommands = function (lower, originalMaybe) {
+      if (handleSceneCommands(lower)) return true;
+      return OLD_HANDLE_ADVANCED_41(lower, originalMaybe);
+    };
+
+    /*************************************************
+     * 82. SIMPLE DEV CONSOLE HELPERS (OPTIONAL)
+     *************************************************/
+    window.SANDBOX = {
+      world,
+      energy: ENERGY,
+      logEvents: () => console.table(LOGGER.events),
+      dumpState: () => dumpSystemState(),
+      scenes: SCENES,
+      presets,
+      enableDebug: () => { debug.enabled = true; },
+      disableDebug: () => { debug.enabled = false; }
+    };
+
+    /*************************************************
+     * 83. BOOT SEQUENCE
+     *************************************************/
+    (function boot() {
+      // Try to restore auto-saved world, otherwise leave default scene
+      const restored = loadAutoSavedWorld();
+      if (!restored) {
+        // tiny starter touch: spawn a few default balls already defined earlier
+        addMessage("system", "Fresh session. Type 'help' or 'start tutorial' to explore.");
+      } else {
+        addMessage("system", "Session restored from auto-save. Type 'help' for commands.");
+      }
+
+      // Make sure keyboard + UI sliders are consistent after any resize
+      resizeCanvas();
+      initAssistant();
+      initKeyboardShortcuts();
+      initOnCanvasUI();
+
+      // Start tutorial hint (not auto-run, just suggestion)
+      addMessage("bot", "Hint: type 'help' for a quick overview, or 'start tutorial'.");
+    })();
+
+    /*************************************************
+     * 84. END OF SINGLE-FILE ENGINE
+     *************************************************/
+    // You can still extend this file by adding more systems
+    // following the same pattern: define feature → hook into
+    // stepPhysics, mainLoop, drawBackground/drawDebug, or
+    // handleAdvancedCommands / handleUserCommand chains.
+
+    logEvent("checkpoint", "Engine fully booted (final block reached)");
+  </script>
+</body>
+
+</html>
